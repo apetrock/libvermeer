@@ -77,6 +77,8 @@ namespace ImGui
 
 bool Application::onInit()
 {
+	_bind_group = lewitt::bindings::group::create();
+
 	if (!initWindowAndDevice())
 		return false;
 	if (!initSwapChain())
@@ -99,6 +101,8 @@ bool Application::onInit()
 
 	if (!initBindGroup())
 		return false;
+	if (!initRenderables())
+		return false;
 	if (!initGui())
 		return false;
 	return true;
@@ -109,9 +113,9 @@ void Application::onFrame()
 	glfwPollEvents();
 	updateDragInertia();
 	updateLightingUniforms();
-	_my_uniform_binding->set_member("time",static_cast<float>(glfwGetTime()));
-	//m_uniforms.time = static_cast<float>(glfwGetTime());
-	//m_queue.writeBuffer(m_uniformBuffer, offsetof(MyUniforms, time), &m_uniforms.time, sizeof(MyUniforms::time));
+	_bind_group->get_uniform_binding(_u_id)->set_member("time", static_cast<float>(glfwGetTime()));
+	// m_uniforms.time = static_cast<float>(glfwGetTime());
+	// m_queue.writeBuffer(m_uniformBuffer, offsetof(MyUniforms, time), &m_uniforms.time, sizeof(MyUniforms::time));
 
 	TextureView nextTexture = m_swapChain.getCurrentTextureView();
 	if (!nextTexture)
@@ -157,17 +161,7 @@ void Application::onFrame()
 	renderPassDesc.timestampWrites = nullptr;
 	RenderPassEncoder renderPass = encoder.beginRenderPass(renderPassDesc);
 
-	renderPass.setPipeline(_foo_material->pipe_line());
-
-	/// renderPass.setVertexBuffer(0, m_vertexBuffer, 0, m_vertexCount * sizeof(VertexAttributes));
-	_geometry->set_current(renderPass);
-	// renderPass.setVertexBuffer(0, _geometry->get_buffer(), 0, _geometry->size());
-
-	// Set binding group
-	renderPass.setBindGroup(0, m_bindGroup, 0, nullptr);
-
-	renderPass.draw(_geometry->count(), 1, 0, 0);
-
+	_cylinder->draw(renderPass);
 	// We add the GUI drawing commands to the render pass
 	updateGui(renderPass);
 
@@ -194,13 +188,7 @@ void Application::onFrame()
 void Application::onFinish()
 {
 	terminateGui();
-	terminateBindGroup();
-	terminateLightingUniforms();
-	terminateUniforms();
-	terminateGeometry();
-	terminateTextures();
 	terminateRenderPipeline();
-	terminateBindGroupLayout();
 	terminateDepthBuffer();
 	terminateSwapChain();
 	terminateWindowAndDevice();
@@ -459,8 +447,8 @@ void Application::terminateDepthBuffer()
 
 bool Application::initRenderPipeline()
 {
-	_foo_material = lewitt::geometry::foo_material::create(m_device);
-	return _foo_material->initRenderPipeline(m_device, m_bindGroupLayout, m_swapChainFormat, m_depthTextureFormat);
+	_ncuvtb_shader = lewitt::shaders::NCUVTB::create(m_device);
+	return _ncuvtb_shader->init(m_device, _bind_group->get_layout(), m_swapChainFormat, m_depthTextureFormat);
 }
 
 void Application::terminateRenderPipeline()
@@ -469,201 +457,111 @@ void Application::terminateRenderPipeline()
 
 bool Application::initTextures()
 {
-	// Create a sampler
-	SamplerDescriptor samplerDesc;
-	samplerDesc.addressModeU = AddressMode::Repeat;
-	samplerDesc.addressModeV = AddressMode::Repeat;
-	samplerDesc.addressModeW = AddressMode::Repeat;
-	samplerDesc.magFilter = FilterMode::Linear;
-	samplerDesc.minFilter = FilterMode::Linear;
-	samplerDesc.mipmapFilter = MipmapFilterMode::Linear;
-	samplerDesc.lodMinClamp = 0.0f;
-	samplerDesc.lodMaxClamp = 8.0f;
-	samplerDesc.compare = CompareFunction::Undefined;
-	samplerDesc.maxAnisotropy = 1;
-	m_sampler = m_device.createSampler(samplerDesc);
-
-	_sampler_binding = lewitt::bindings::sampler::create(samplerDesc, m_device);
-	_sampler_binding->set_type(SamplerBindingType::Filtering);
-	_sampler_binding->set_visibility(ShaderStage::Fragment);
-
-	// Create textures
-	m_baseColorTexture = ResourceManager::loadTexture(RESOURCE_DIR "/cobblestone_floor_08_diff_2k.jpg", m_device, &m_baseColorTextureView);
+	lewitt::bindings::sampler::ptr sampler_binding =
+			lewitt::bindings::default_linear_filter(ShaderStage::Fragment, m_device);
+	// Create textures\
 	// m_baseColorTexture = ResourceManager::loadTexture(RESOURCE_DIR "/fourareen2K_albedo.jpg", m_device, &m_baseColorTextureView);
 
-	_base_texture_binding = lewitt::bindings::texture::create(
-			RESOURCE_DIR "/cobblestone_floor_08_diff_2k.jpg",
-			m_device);
-	_base_texture_binding->set_visibility(ShaderStage::Fragment);
-	_base_texture_binding->set_sample_type(TextureSampleType::Float);
-	_base_texture_binding->set_dimension(TextureViewDimension::_2D);
+	lewitt::bindings::texture::ptr base_texture_binding = lewitt::bindings::texture::create(
+			ResourceManager::loadTextureAndView(RESOURCE_DIR "/cobblestone_floor_08_diff_2k.jpg", m_device));
 
-	if (!_base_texture_binding->valid())
+	base_texture_binding->set_frag_float_2d();
+	if (!base_texture_binding->valid())
 	{
 		std::cerr << "Could not load base color texture!" << std::endl;
 		return false;
 	}
 
-	m_normalTexture = ResourceManager::loadTexture(RESOURCE_DIR "/cobblestone_floor_08_nor_gl_2k.png", m_device, &m_normalTextureView);
-	// m_normalTexture = ResourceManager::loadTexture(RESOURCE_DIR "/fourareen2K_normals.png", m_device, &m_normalTextureView);
+	lewitt::bindings::texture::ptr normal_texture_binding = lewitt::bindings::texture::create(
+			ResourceManager::loadTextureAndView(RESOURCE_DIR "/cobblestone_floor_08_nor_gl_2k.png", m_device));
+	normal_texture_binding->set_frag_float_2d();
 
-	_normal_texture_binding = lewitt::bindings::texture::create(
-			RESOURCE_DIR "/cobblestone_floor_08_nor_gl_2k.png",
-			m_device);
-	_normal_texture_binding->set_visibility(ShaderStage::Fragment);
-	_normal_texture_binding->set_sample_type(TextureSampleType::Float);
-	_normal_texture_binding->set_dimension(TextureViewDimension::_2D);
+	_bind_group->append(base_texture_binding);
+	_bind_group->append(normal_texture_binding);
+	_bind_group->append(sampler_binding);
 
-	if (!_normal_texture_binding->valid())
+	if (!normal_texture_binding->valid())
 	{
 		std::cerr << "Could not load normal texture!" << std::endl;
 		return false;
 	}
-	return m_baseColorTextureView != nullptr && m_normalTextureView != nullptr;
-}
-
-void Application::terminateTextures()
-{
-	m_baseColorTextureView.release();
-	m_baseColorTexture.destroy();
-	m_baseColorTexture.release();
-	m_normalTextureView.release();
-	m_normalTexture.destroy();
-	m_normalTexture.release();
-	m_sampler.release();
+	return true;
 }
 
 bool Application::initGeometry()
 {
-
-	_geometry = lewitt::geometry::buffer::create();
-	return _geometry->init(m_device, m_queue);
-}
-
-void Application::terminateGeometry()
-{
-
-	// m_vertexBuffer.destroy();
-	// m_vertexBuffer.release();
-	// m_vertexCount = 0;
+	_geometry = lewitt::buffers::load_cylinder(m_device);
+	return _geometry->valid();
 }
 
 bool Application::initUniforms()
 {
+
 	using mat4 = lewitt::bindings::mat4;
-	
+
 	// Create uniform buffer
 	std::cout << "init my uniforms" << std::endl;
-	_my_uniform_binding =
+	lewitt::bindings::uniform::ptr my_uniform_binding =
 			lewitt::bindings::uniform::create<mat4, mat4, mat4, vec4, vec3, float>(
 					{"projectionMatrix", "viewMatrix", "modelMatrix", "color", "cameraWorldPosition", "time"}, m_device);
-	_my_uniform_binding->set_visibility(ShaderStage::Vertex | ShaderStage::Fragment);
-	_my_uniform_binding->set_member("modelMatrix", mat4x4(1.0));
-	_my_uniform_binding->set_member("viewMatrix", glm::lookAt(vec3(-2.0f, -3.0f, 2.0f), vec3(0.0f), vec3(0, 0, 1)));
-	_my_uniform_binding->set_member("projectionMatrix", glm::perspective(45 * PI / 180, 640.0f / 480.0f, 0.01f, 100.0f));
-	_my_uniform_binding->set_member("time", 1.0f);
-	_my_uniform_binding->set_member("color", vec4(0.0f, 1.0f, 0.4f, 1.0f));
-	
+	my_uniform_binding->set_visibility(ShaderStage::Vertex | ShaderStage::Fragment);
+	my_uniform_binding->set_member("modelMatrix", mat4x4(1.0));
+	my_uniform_binding->set_member("viewMatrix", glm::lookAt(vec3(-2.0f, -3.0f, 2.0f), vec3(0.0f), vec3(0, 0, 1)));
+	my_uniform_binding->set_member("projectionMatrix", glm::perspective(45 * PI / 180, 640.0f / 480.0f, 0.01f, 100.0f));
+	my_uniform_binding->set_member("time", 1.0f);
+	my_uniform_binding->set_member("color", vec4(0.0f, 1.0f, 0.4f, 1.0f));
+	_u_id = _bind_group->insert(0, my_uniform_binding);
 	updateProjectionMatrix();
 	updateViewMatrix();
-	return _my_uniform_binding->valid();
-}
-
-void Application::terminateUniforms()
-{
+	return my_uniform_binding->valid();
 }
 
 bool Application::initLightingUniforms()
 {
 	std::cout << "init lighting" << std::endl;
 	using vec4x2 = lewitt::uniforms::vec4x2;
-	_lighting_uniform_binding =
+	lewitt::bindings::uniform::ptr lighting_uniform_binding =
 			lewitt::bindings::uniform::create<vec4x2, vec4x2, float, float, float, float>(
 					{"directions", "colors", "hardness", "kd", "ks", "pad"}, m_device);
-	_lighting_uniform_binding->set_visibility(ShaderStage::Fragment);
+	lighting_uniform_binding->set_visibility(ShaderStage::Fragment);
 
 	vec4x2 dirs = {vec4(0.5f, -0.9f, 0.1f, 0.0f), vec4(0.2f, 0.4f, 0.3f, 0.0f)};
-	_lighting_uniform_binding->set_member("directions", dirs);
+	lighting_uniform_binding->set_member("directions", dirs);
 	vec4x2 colors = {vec4({1.0f, 0.9f, 0.6f, 1.0f}), vec4(0.6f, 0.9f, 1.0f, 1.0f)};
-	_lighting_uniform_binding->set_member("colors", colors);
+	lighting_uniform_binding->set_member("colors", colors);
 
-	_lighting_uniform_binding->set_member("hardness", 32.0f);
-	_lighting_uniform_binding->set_member("kd", 1.0f);
-	_lighting_uniform_binding->set_member("ks", 0.5f);
-	_lighting_uniform_binding->set_member("pad", 0.0f);
-	
+	lighting_uniform_binding->set_member("hardness", 32.0f);
+	lighting_uniform_binding->set_member("kd", 1.0f);
+	lighting_uniform_binding->set_member("ks", 0.5f);
+	lighting_uniform_binding->set_member("pad", 0.0f);
+	_u_lighting_id = _bind_group->append(lighting_uniform_binding);
+
 	lewitt::uniforms::test_structish();
 	updateLightingUniforms();
-	return _lighting_uniform_binding->valid();
-}
-
-void Application::terminateLightingUniforms()
-{
+	return lighting_uniform_binding->valid();
 }
 
 void Application::updateLightingUniforms()
 {
-	_lighting_uniform_binding->update(m_queue);
+	_bind_group->get_uniform_binding(_u_lighting_id)->update(m_queue);
 	//_lighting_uniform_binding->update(m_lightingUniforms, m_queue);
-
 }
 
 bool Application::initBindGroupLayout()
 {
-	std::vector<BindGroupLayoutEntry> bindingLayoutEntries(5, Default);
-	//                                                     ^ This was a 4
-
-	// The uniform buffer binding
-	
-	_my_uniform_binding->set_id(0);
-	_my_uniform_binding->add_to_layout(bindingLayoutEntries);
-	_base_texture_binding->set_id(1);
-	_base_texture_binding->add_to_layout(bindingLayoutEntries);
-	_normal_texture_binding->set_id(2);
-	_normal_texture_binding->add_to_layout(bindingLayoutEntries);
-	_sampler_binding->set_id(3);
-	_sampler_binding->add_to_layout(bindingLayoutEntries);
-	_lighting_uniform_binding->set_id(4);
-	_lighting_uniform_binding->add_to_layout(bindingLayoutEntries);
-
-	// Create a bind group layout
-	BindGroupLayoutDescriptor bindGroupLayoutDesc{};
-	bindGroupLayoutDesc.entryCount = (uint32_t)bindingLayoutEntries.size();
-	bindGroupLayoutDesc.entries = bindingLayoutEntries.data();
-	m_bindGroupLayout = m_device.createBindGroupLayout(bindGroupLayoutDesc);
-
-	return m_bindGroupLayout != nullptr;
-}
-
-void Application::terminateBindGroupLayout()
-{
-	m_bindGroupLayout.release();
+	return _bind_group->init_layout(m_device);
 }
 
 bool Application::initBindGroup()
 {
-	// Create a binding
-	std::vector<BindGroupEntry> bindings(5);
-	//                                   ^ This was a 4
-
-	_my_uniform_binding->add_to_group(bindings);
-	_base_texture_binding->add_to_group(bindings);
-	_normal_texture_binding->add_to_group(bindings);
-	_sampler_binding->add_to_group(bindings);
-	_lighting_uniform_binding->add_to_group(bindings);
-
-	BindGroupDescriptor bindGroupDesc;
-	bindGroupDesc.layout = m_bindGroupLayout;
-	bindGroupDesc.entryCount = (uint32_t)bindings.size();
-	bindGroupDesc.entries = bindings.data();
-	m_bindGroup = m_device.createBindGroup(bindGroupDesc);
-
-	return m_bindGroup != nullptr;
+	return _bind_group->init(m_device);
 }
 
-void Application::terminateBindGroup()
+bool Application::initRenderables()
 {
-	m_bindGroup.release();
+	_cylinder = lewitt::doables::renderable::create(
+			_geometry, _bind_group, _ncuvtb_shader);
+	return true;
 }
 
 void Application::updateProjectionMatrix()
@@ -673,8 +571,9 @@ void Application::updateProjectionMatrix()
 	int width, height;
 	glfwGetFramebufferSize(m_window, &width, &height);
 	float ratio = width / (float)height;
-	_my_uniform_binding->set_member("projectionMatrix", glm::perspective(45 * PI / 180, ratio, 0.01f, 100.0f));
-	_my_uniform_binding->update(m_queue);
+	lewitt::bindings::uniform::ptr uniforms = _bind_group->get_uniform_binding(_u_id);
+	uniforms->set_member("projectionMatrix", glm::perspective(45 * PI / 180, ratio, 0.01f, 100.0f));
+	uniforms->update(m_queue);
 }
 
 void Application::updateViewMatrix()
@@ -685,9 +584,10 @@ void Application::updateViewMatrix()
 	float cy = cos(m_cameraState.angles.y);
 	float sy = sin(m_cameraState.angles.y);
 	vec3 position = vec3(cx * cy, sx * cy, sy) * std::exp(-m_cameraState.zoom);
-	_my_uniform_binding->set_member("viewMatrix", glm::lookAt(position, vec3(0.0f), vec3(0, 0, 1)));
-	_my_uniform_binding->set_member("cameraWorldPosition", position);
-	_my_uniform_binding->update(m_queue);
+	lewitt::bindings::uniform::ptr uniforms = _bind_group->get_uniform_binding(_u_id);
+	uniforms->set_member("viewMatrix", glm::lookAt(position, vec3(0.0f), vec3(0, 0, 1)));
+	uniforms->set_member("cameraWorldPosition", position);
+	uniforms->update(m_queue);
 }
 
 void Application::updateDragInertia()
@@ -750,7 +650,6 @@ void Application::updateGui(RenderPassEncoder renderPass)
 		changed = ImGui::SliderFloat("K Specular", &m_lightingUniforms.ks, 0.0f, 1.0f) || changed;
 		*/
 		ImGui::End();
-		m_lightingUniformsChanged = changed;
 	}
 
 	// Draw the UI

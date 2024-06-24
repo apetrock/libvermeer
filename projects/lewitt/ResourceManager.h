@@ -67,6 +67,7 @@ public:
 	// Load an image from a standard image file into a new texture object
 	// NB: The texture must be destroyed after use
 	static wgpu::Texture loadTexture(const path& path, wgpu::Device device, wgpu::TextureView* pTextureView = nullptr);
+	static std::pair<wgpu::Texture, wgpu::TextureView> loadTextureAndView(const path &path, wgpu::Device device);
 
 private:
 	// Compute the TBN local to a triangle face from its corners and return it as
