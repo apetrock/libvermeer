@@ -50,6 +50,7 @@ public:
 
 	// A function called at each frame, guaranteed never to be called before `onInit`.
 	void onFrame();
+	void onCompute();
 
 	// A function called only once at the very end.
 	void onFinish();
@@ -84,6 +85,8 @@ private:
 
 	bool initUniforms();
 
+	bool initTestCompute();
+
 	bool initLightingUniforms();
 	void updateLightingUniforms();
 
@@ -110,35 +113,7 @@ private:
 	/**
 	 * The same structure as in the shader, replicated in C++
 	 */
-	struct MyUniforms
-	{
-		// We add transform matrices
-		mat4x4 projectionMatrix;
-		mat4x4 viewMatrix;
-		mat4x4 modelMatrix;
-		vec4 color;
-		vec3 cameraWorldPosition;
-		float time;
-	};
-	// Have the compiler check byte alignment
-	static_assert(sizeof(MyUniforms) % 16 == 0);
-
-	struct LightingUniforms
-	{
-		std::array<vec4, 2> directions;
-		std::array<vec4, 2> colors;
-
-		// Material properties
-		float hardness = 32.0f;
-		float kd = 1.0f;
-		float ks = 0.5f;
-
-		float _pad[1];
-	};
-
 	//
-
-	static_assert(sizeof(LightingUniforms) % 16 == 0);
 
 	struct CameraState
 	{
@@ -186,21 +161,13 @@ private:
 	wgpu::Texture m_depthTexture = nullptr;
 	wgpu::TextureView m_depthTextureView = nullptr;
 
-	// Render Pipeline
-	wgpu::ShaderModule m_shaderModule = nullptr;
-	wgpu::RenderPipeline m_pipeline = nullptr;
-
-	// object seems to have a pipeline,
 	lewitt::doables::renderable::ptr _cylinder;
 	lewitt::shaders::NCUVTB::ptr _ncuvtb_shader;
 	lewitt::buffers::buffer::ptr _geometry;
 	int _u_id = -1, _u_lighting_id = -1;
 	lewitt::bindings::group::ptr _bind_group = nullptr;
 
-	int m_vertexCount = 0;
-
-	// Bind Group
-
+	lewitt::doables::ray_compute::ptr _ray_compute;
 	CameraState m_cameraState;
 	DragState m_drag;
 };

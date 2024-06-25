@@ -5,6 +5,7 @@
 #include "ResourceManager.h"
 #include "bindings.hpp"
 #include "vertex_formats.hpp"
+#include "buffer_flags.h"
 // there will have to be scene uniforms and buffer uniforms,
 // I think we can seperate all of those out.
 namespace lewitt
@@ -26,21 +27,6 @@ namespace lewitt
       }
       return vertexData;
     }
-
-    inline constexpr WGPUBufferUsageFlags buffer_read =
-        (wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex);
-
-    inline constexpr WGPUBufferUsageFlags buffer_write =
-        (wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Storage);
-
-    inline constexpr WGPUBufferUsageFlags texture_read =
-        (wgpu::TextureUsage::TextureBinding | // to bind the texture in a shader
-         wgpu::TextureUsage::CopyDst);        // to upload the input data
-
-    inline constexpr WGPUBufferUsageFlags texture_write =
-        (wgpu::TextureUsage::TextureBinding | // to bind the texture in a shader
-         wgpu::TextureUsage::StorageBinding | // to write the texture in a shader
-         wgpu::TextureUsage::CopySrc);
 
     class buffer
     {
@@ -113,7 +99,7 @@ namespace lewitt
       void set_usage(const WGPUBufferUsageFlags &usage) { _usage = usage; }
 
       std::string _label = "";
-      WGPUBufferUsageFlags _usage = buffer_read;
+      WGPUBufferUsageFlags _usage = buffer_flags::vertex_read;
 
       wgpu::Buffer _vertexBuffer = nullptr;
       size_t _sizeof_format = 0;

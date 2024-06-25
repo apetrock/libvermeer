@@ -24,15 +24,20 @@ namespace lewitt
 
       wgpu::ShaderModule shaderModule = nullptr;
       virtual bool init(wgpu::Device &device,
+                        wgpu::BindGroupLayout &bind_group_layout)
+      {
+        return false;
+      }
+      
+      virtual bool init(wgpu::Device &device,
                         wgpu::BindGroupLayout &bind_group_layout,
                         const wgpu::TextureFormat &color_format,
                         const wgpu::TextureFormat &depth_format)
       {
         return false;
       }
-      
-      virtual wgpu::RenderPipeline pipe_line() { return nullptr; }
-      
+      virtual wgpu::RenderPipeline render_pipe_line() { return nullptr; }
+      virtual wgpu::ComputePipeline compute_pipe_line() { return nullptr; }
     };
 
     class NCUVTB : public shader
@@ -123,7 +128,7 @@ namespace lewitt
         return m_pipeline != nullptr;
       }
 
-      virtual wgpu::RenderPipeline pipe_line() { return m_pipeline; }
+      virtual wgpu::RenderPipeline render_pipe_line() { return m_pipeline; }
       // wgpu::BindGroupLayout m_bindGroupLayout = nullptr;
       //  Bind Group
       // wgpu::BindGroup m_bindGroup = nullptr;

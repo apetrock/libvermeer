@@ -89,6 +89,8 @@ bool Application::onInit()
 		return false;
 	if (!initUniforms())
 		return false;
+	if (!initTestCompute())
+		return false;
 	if (!initLightingUniforms())
 		return false;
 	if (!initBindGroupLayout())
@@ -110,6 +112,7 @@ bool Application::onInit()
 
 void Application::onFrame()
 {
+	onCompute();
 	glfwPollEvents();
 	updateDragInertia();
 	updateLightingUniforms();
@@ -182,6 +185,35 @@ void Application::onFrame()
 #ifdef WEBGPU_BACKEND_DAWN
 	// Check for pending error callbacks
 	m_device.tick();
+#endif
+}
+
+
+void Application::onCompute()
+{
+	std::cout << "Computing..." << std::endl;
+
+	CommandEncoderDescriptor encoderDesc = Default;
+	CommandEncoder encoder = m_device.createCommandEncoder(encoderDesc);
+
+	// Create compute pass
+	ComputePassDescriptor computePassDesc;
+	computePassDesc.timestampWriteCount = 0;
+	computePassDesc.timestampWrites = nullptr;
+
+	ComputePassEncoder computePass = encoder.beginComputePass(computePassDesc);
+	_ray_compute->compute(computePass);
+	computePass.end();
+
+	// Encode and submit the GPU commands
+	CommandBuffer commands = encoder.finish(CommandBufferDescriptor{});
+
+	m_queue.submit(commands);
+
+#if !defined(WEBGPU_BACKEND_WGPU)
+	wgpuCommandBufferRelease(commands);
+	wgpuCommandEncoderRelease(encoder);
+	wgpuComputePassEncoderRelease(computePass);
 #endif
 }
 
@@ -306,7 +338,7 @@ bool Application::initWindowAndDevice()
 	requiredLimits.limits.maxVertexAttributes = 6;
 	//                                          ^ This was a 4
 	requiredLimits.limits.maxVertexBuffers = 1;
-	requiredLimits.limits.maxBufferSize = 150000 * sizeof(VertexAttributes);
+	requiredLimits.limits.maxBufferSize = 1500000 * sizeof(VertexAttributes);
 	requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes);
 	requiredLimits.limits.minStorageBufferOffsetAlignment = supportedLimits.limits.minStorageBufferOffsetAlignment;
 	requiredLimits.limits.minUniformBufferOffsetAlignment = supportedLimits.limits.minUniformBufferOffsetAlignment;
@@ -330,7 +362,6 @@ bool Application::initWindowAndDevice()
 	deviceDesc.defaultQueue.label = "The default queue";
 	m_device = adapter.requestDevice(deviceDesc);
 	std::cout << "Got device: " << m_device << std::endl;
-
 	// Add an error callback for more debug info
 	m_errorCallbackHandle = m_device.setUncapturedErrorCallback([](ErrorType type, char const *message)
 																															{
@@ -476,9 +507,9 @@ bool Application::initTextures()
 			ResourceManager::loadTextureAndView(RESOURCE_DIR "/cobblestone_floor_08_nor_gl_2k.png", m_device));
 	normal_texture_binding->set_frag_float_2d();
 
-	_bind_group->append(base_texture_binding);
-	_bind_group->append(normal_texture_binding);
-	_bind_group->append(sampler_binding);
+	_bind_group->assign(1, base_texture_binding);
+	_bind_group->assign(2, normal_texture_binding);
+	_bind_group->assign(3, sampler_binding);
 
 	if (!normal_texture_binding->valid())
 	{
@@ -510,10 +541,17 @@ bool Application::initUniforms()
 	my_uniform_binding->set_member("projectionMatrix", glm::perspective(45 * PI / 180, 640.0f / 480.0f, 0.01f, 100.0f));
 	my_uniform_binding->set_member("time", 1.0f);
 	my_uniform_binding->set_member("color", vec4(0.0f, 1.0f, 0.4f, 1.0f));
-	_u_id = _bind_group->insert(0, my_uniform_binding);
+	_u_id = _bind_group->assign(0, my_uniform_binding);
 	updateProjectionMatrix();
 	updateViewMatrix();
 	return my_uniform_binding->valid();
+}
+
+bool Application::initTestCompute(){
+	_ray_compute = lewitt::doables::ray_compute::create(m_device);
+	_ray_compute->init_textures(m_device);
+	_ray_compute->init_shader_pipeline(m_device);
+	return true;
 }
 
 bool Application::initLightingUniforms()
@@ -534,7 +572,7 @@ bool Application::initLightingUniforms()
 	lighting_uniform_binding->set_member("kd", 1.0f);
 	lighting_uniform_binding->set_member("ks", 0.5f);
 	lighting_uniform_binding->set_member("pad", 0.0f);
-	_u_lighting_id = _bind_group->append(lighting_uniform_binding);
+	_u_lighting_id = _bind_group->assign(4, lighting_uniform_binding);
 
 	lewitt::uniforms::test_structish();
 	updateLightingUniforms();

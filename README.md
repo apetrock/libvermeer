@@ -1,5 +1,9 @@
 ### LibVermeer
 
+<p align="center">
+  <img src="assets/vermeer-dog-sleeping.png" />
+</p>
+
 Supposedly Vermeer used a camera obscura to paint his photo realistic portraits.  Therefore I thought that Vermeer was a fitting name for a rendering library.
 Right now the project is turning into a just a platform to learn webgpu.
 

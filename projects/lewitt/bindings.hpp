@@ -190,20 +190,33 @@ namespace lewitt
       {
         // The normal map binding
         // std::cout << " texture" << std::endl;
-        // wgpu::BindGroupLayoutEntry &textBindingLayout = entries[_id];
-        // textBindingLayout.binding = _id;
-        /// textBindingLayout.visibility = _visibility;
-        // std::cout << "type 1: " << _sample_type << std::endl;
-        // std::cout << "dim 1: " << _dim << std::endl;
-        // textBindingLayout.texture.sampleType = _sample_type;
-        // textBindingLayout.texture.viewDimension = _dim;
+         wgpu::BindGroupLayoutEntry &textBindingLayout = entries[_id];
+         textBindingLayout.binding = _id;
+         textBindingLayout.visibility = _visibility;
+         textBindingLayout.buffer.type = _type;
+         textBindingLayout.buffer.minBindingSize = _buffer->size();
+
       }
 
       virtual void add_to_group(std::vector<wgpu::BindGroupEntry> &bindings)
       {
-        // this->binding::add_to_group(bindings);
-        // bindings[this->_id].textureView = _texture_view;
+         this->binding::add_to_group(bindings);
+         bindings[this->_id].buffer = _buffer->get_buffer();
+         bindings[this->_id].offset = _offset;
+         bindings[this->_id].size = _buffer->size();
+         
       }
+      
+      virtual void set_binding_type(WGPUBufferBindingType type){
+        _type = type;
+      }
+      
+      virtual void set_offset(uint64_t offset){
+        _offset = _offset;
+      }
+
+      uint64_t _offset = 0;
+      WGPUBufferBindingType _type = wgpu::BufferBindingType::Undefined;
       buffers::buffer::ptr _buffer;
     };
 
@@ -266,7 +279,7 @@ namespace lewitt
         return _texture;
       }
 
-      WGPUTextureViewDimension _dim;
+      WGPUTextureViewDimension _dim = wgpu::TextureViewDimension::_2D;
       WGPUTextureSampleType _sample_type;
       wgpu::Texture _texture = nullptr;
       wgpu::TextureView _texture_view = nullptr;
@@ -276,7 +289,7 @@ namespace lewitt
     {
     public:
       DEFINE_CREATE_FUNC(storage_texture);
-      storage_texture(std::pair<wgpu::Texture, wgpu::TextureView> tex) : _texture(tex.first), _texture_view(tex.second)
+      storage_texture(std::pair<wgpu::Texture, wgpu::TextureView> tex) : texture(tex)
       {
       }
 
@@ -287,37 +300,36 @@ namespace lewitt
         _texture.release();
       }
 
+      void set_compute_write_2d()
+      {
+        this->set_visibility(wgpu::ShaderStage::Compute);
+        this->set_access(wgpu::StorageTextureAccess::WriteOnly);
+        this->set_dimension(wgpu::TextureViewDimension::_2D);
+      }
+
       bool valid()
       {
-        return _texture != nullptr;
+        return this->_texture != nullptr;
       }
-      void set_sample_type(WGPUTextureSampleType type)
+
+      void set_access(WGPUStorageTextureAccess access)
       {
-        _sample_type = type;
-      }
-      void set_dimension(WGPUTextureViewDimension dim)
-      {
-        _dim = dim;
+        _access = access;
       }
 
       virtual void add_to_layout(std::vector<wgpu::BindGroupLayoutEntry> &entries)
       {
-        // The normal map binding
-        std::cout << " texture" << std::endl;
+        
         wgpu::BindGroupLayoutEntry &textBindingLayout = entries[_id];
         textBindingLayout.binding = _id;
         textBindingLayout.visibility = _visibility;
-        std::cout << "type 1: " << _sample_type << std::endl;
-        std::cout << "dim 1: " << _dim << std::endl;
-        textBindingLayout.storageTexture.access = StorageTextureAccess::WriteOnly;
-        textBindingLayout.storageTexture.format = TextureFormat::RGBA8Unorm;
-        textBindingLayout.storageTexture.viewDimension = TextureViewDimension::_2D;
+        textBindingLayout.storageTexture.access = _access;
+        textBindingLayout.storageTexture.format = _format;
+        textBindingLayout.storageTexture.viewDimension = _dim;
       }
-
-      virtual wgpu::Texture get_texture()
-      {
-        return _texture;
-      }
+      WGPUStorageTextureAccess _access = wgpu::StorageTextureAccess::WriteOnly;
+      
+      WGPUTextureFormat _format = wgpu::TextureFormat::RGBA8Unorm;
     };
 
     //
@@ -413,16 +425,15 @@ namespace lewitt
         return _bindings.size() - 1;
       }
 
-      int insert(const int &i, const binding::ptr &binding)
+      int assign(const int &i, const binding::ptr &binding)
       {
         if (_bindings.size() < i + 1)
           _bindings.resize(i + 1, nullptr);
-
-        std::vector<binding::ptr>::iterator it = _bindings.begin();
-        std::vector<binding::ptr>::iterator end = _bindings.end();
-
-        _bindings.insert(it + i, binding);
+        
+        _bindings[i] = binding;
+        return i;
       }
+      
 
       bool init_layout(wgpu::Device &device)
       {
