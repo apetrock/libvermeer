@@ -37,8 +37,28 @@ namespace lewitt
       return vertexAttribs;
     }
 
+    using N_t = ResourceManager::position_normal_attributes;
+    inline std::vector<wgpu::VertexAttribute> N()
+    {
+      // Vertex fetch
+      const int N_attribs = 2;
+      std::vector<wgpu::VertexAttribute> vertexAttribs(N_attribs);
+      int offsets[N_attribs] = { 0, offsetof(N_t, normal)};
+
+      wgpu::VertexFormat formats[N_attribs] = {
+          wgpu::VertexFormat::Float32x3, wgpu::VertexFormat::Float32x3};
+
+      for (int i = 0; i < N_attribs; i++)
+      {
+        vertexAttribs[i].shaderLocation = i;
+        vertexAttribs[i].format = formats[i];
+        vertexAttribs[i].offset = offsets[i];
+      }
+      return vertexAttribs;
+    }
+
     template <typename T>
-    wgpu::VertexBufferLayout layout(std::vector<wgpu::VertexAttribute> &format)
+    wgpu::VertexBufferLayout create_layout(std::vector<wgpu::VertexAttribute> &format)
     {
       wgpu::VertexBufferLayout vertexBufferLayout;
       vertexBufferLayout.attributeCount = (uint32_t)format.size();
@@ -47,5 +67,6 @@ namespace lewitt
       vertexBufferLayout.stepMode = wgpu::VertexStepMode::Vertex;
       return vertexBufferLayout;
     }
+
   }
 }

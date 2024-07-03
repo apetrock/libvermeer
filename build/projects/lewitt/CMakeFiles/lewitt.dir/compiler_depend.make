@@ -292,6 +292,7 @@ projects/lewitt/CMakeFiles/lewitt.dir/Application.cpp.o: /home/delajor/Code/verm
   /home/delajor/Code/vermeer/ext/webgpu-native/include/webgpu/webgpu.h \
   /home/delajor/Code/vermeer/ext/webgpu-native/include/webgpu/webgpu.hpp \
   /home/delajor/Code/vermeer/ext/webgpu-native/include/webgpu/wgpu.h \
+  /home/delajor/Code/vermeer/include/tiny_obj_loader.h \
   /home/delajor/Code/vermeer/projects/lewitt/Application.h \
   /home/delajor/Code/vermeer/projects/lewitt/ResourceManager.h \
   /home/delajor/Code/vermeer/projects/lewitt/bindings.hpp \
@@ -676,6 +677,10 @@ projects/lewitt/CMakeFiles/lewitt.dir/ResourceManager.cpp.o: /home/delajor/Code/
   /home/delajor/Code/vermeer/ext/glm/geometric.hpp \
   /home/delajor/Code/vermeer/ext/glm/detail/func_matrix.inl \
   /home/delajor/Code/vermeer/ext/glm/detail/setup.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/quaternion_relational.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/quaternion_relational.inl \
+  /home/delajor/Code/vermeer/ext/glm/gtc/matrix_transform.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/matrix_transform.inl \
   /home/delajor/Code/vermeer/ext/glm/mat2x3.hpp \
   /home/delajor/Code/vermeer/ext/glm/mat2x4.hpp \
   /home/delajor/Code/vermeer/ext/glm/mat3x2.hpp \
@@ -687,9 +692,12 @@ projects/lewitt/CMakeFiles/lewitt.dir/ResourceManager.cpp.o: /home/delajor/Code/
   /home/delajor/Code/vermeer/ext/glm/matrix.hpp \
   /home/delajor/Code/vermeer/ext/glm/detail/compute_vector_relational.hpp \
   /home/delajor/Code/vermeer/ext/glm/detail/setup.hpp \
+  /home/delajor/Code/vermeer/ext/glm/detail/_fixes.hpp \
   /home/delajor/Code/vermeer/ext/glm/detail/setup.hpp \
   /home/delajor/Code/vermeer/ext/glm/detail/type_mat2x2.hpp \
   /home/delajor/Code/vermeer/ext/glm/detail/type_mat2x2.inl \
+  /home/delajor/Code/vermeer/ext/glm/detail/type_quat.hpp \
+  /home/delajor/Code/vermeer/ext/glm/detail/type_quat.inl \
   /home/delajor/Code/vermeer/ext/glm/detail/type_vec2.hpp \
   /home/delajor/Code/vermeer/ext/glm/detail/type_vec2.inl \
   /home/delajor/Code/vermeer/ext/glm/detail/type_vec3.hpp \
@@ -697,42 +705,173 @@ projects/lewitt/CMakeFiles/lewitt.dir/ResourceManager.cpp.o: /home/delajor/Code/
   /home/delajor/Code/vermeer/ext/glm/detail/type_vec4.hpp \
   /home/delajor/Code/vermeer/ext/glm/detail/type_vec4.inl \
   /home/delajor/Code/vermeer/ext/glm/detail/setup.hpp \
+  /home/delajor/Code/vermeer/ext/glm/detail/type_float.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/quaternion_geometric.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/quaternion_geometric.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext/scalar_constants.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/scalar_constants.inl \
   /home/delajor/Code/vermeer/ext/glm/ext/scalar_int_sized.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/scalar_uint_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_relational.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_relational.inl \
+  /home/delajor/Code/vermeer/ext/glm/gtc/constants.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/constants.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_clip_space.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_clip_space.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_common.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_common.inl \
   /home/delajor/Code/vermeer/ext/glm/ext/matrix_double2x2.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/matrix_double2x2_precision.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/matrix_float2x2.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/matrix_float2x2_precision.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_int2x2.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_int2x2_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_int2x3.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_int2x3_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_int2x4.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_int2x4_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_int3x2.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_int3x2_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_int3x3.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_int3x3_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_int3x4.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_int3x4_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_int4x2.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_int4x2_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_int4x3.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_int4x3_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_int4x4.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_int4x4_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_projection.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_projection.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_relational.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_relational.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_transform.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_transform.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_uint2x2.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_uint2x2_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_uint2x3.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_uint2x3_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_uint2x4.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_uint2x4_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_uint3x2.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_uint3x2_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_uint3x3.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_uint3x3_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_uint3x4.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_uint3x4_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_uint4x2.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_uint4x2_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_uint4x3.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_uint4x3_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_uint4x4.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/matrix_uint4x4_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/quaternion_common.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/quaternion_common.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext/quaternion_double.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/quaternion_double_precision.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/quaternion_exponential.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/quaternion_exponential.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext/quaternion_float.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/quaternion_float_precision.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/quaternion_transform.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/quaternion_transform.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext/quaternion_trigonometric.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/quaternion_trigonometric.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext/scalar_common.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/scalar_common.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext/scalar_integer.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/scalar_integer.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext/scalar_packing.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/scalar_packing.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext/scalar_relational.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/scalar_relational.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext/scalar_ulp.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/scalar_ulp.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_bool1.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_bool1_precision.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_bool2.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_bool2_precision.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_bool3.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_bool3_precision.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_bool4.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_bool4_precision.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_common.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_common.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_double1.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_double1_precision.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_double2.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_double2_precision.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_double3.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_double3_precision.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_double4.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_double4_precision.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_float1.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_float1_precision.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_float2.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_float2_precision.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_float3.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_float3_precision.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_float4.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_float4_precision.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_int1.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_int1_sized.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_int2.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_int2_sized.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_int3.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_int3_sized.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_int4.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_int4_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_integer.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_integer.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_packing.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_packing.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_uint1.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_uint1_sized.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_uint2.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_uint2_sized.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_uint3.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_uint3_sized.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_uint4.hpp \
   /home/delajor/Code/vermeer/ext/glm/ext/vector_uint4_sized.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_ulp.hpp \
+  /home/delajor/Code/vermeer/ext/glm/ext/vector_ulp.inl \
+  /home/delajor/Code/vermeer/ext/glm/detail/_noise.hpp \
+  /home/delajor/Code/vermeer/ext/glm/detail/setup.hpp \
+  /home/delajor/Code/vermeer/ext/glm/detail/setup.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/epsilon.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/epsilon.inl \
+  /home/delajor/Code/vermeer/ext/glm/gtc/quaternion.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/quaternion.inl \
+  /home/delajor/Code/vermeer/ext/glm/gtc/vec1.hpp \
+  /home/delajor/Code/vermeer/ext/glm/simd/integer.h \
+  /home/delajor/Code/vermeer/ext/glm/gtc/bitfield.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/bitfield.inl \
+  /home/delajor/Code/vermeer/ext/glm/gtc/color_space.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/color_space.inl \
+  /home/delajor/Code/vermeer/ext/glm/gtc/integer.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/integer.inl \
+  /home/delajor/Code/vermeer/ext/glm/gtc/matrix_access.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/matrix_access.inl \
+  /home/delajor/Code/vermeer/ext/glm/gtc/matrix_integer.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/matrix_inverse.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/matrix_inverse.inl \
+  /home/delajor/Code/vermeer/ext/glm/gtc/noise.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/noise.inl \
+  /home/delajor/Code/vermeer/ext/glm/gtc/packing.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/packing.inl \
+  /home/delajor/Code/vermeer/ext/glm/gtc/random.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/random.inl \
+  /home/delajor/Code/vermeer/ext/glm/gtc/reciprocal.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/reciprocal.inl \
+  /home/delajor/Code/vermeer/ext/glm/gtc/round.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/round.inl \
+  /home/delajor/Code/vermeer/ext/glm/gtc/type_precision.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/type_precision.inl \
+  /home/delajor/Code/vermeer/ext/glm/gtc/type_ptr.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/type_ptr.inl \
+  /home/delajor/Code/vermeer/ext/glm/gtc/ulp.hpp \
+  /home/delajor/Code/vermeer/ext/glm/gtc/ulp.inl \
   /home/delajor/Code/vermeer/ext/glm/simd/platform.h \
   /home/delajor/Code/vermeer/ext/glm/detail/_fixes.hpp \
   /home/delajor/Code/vermeer/ext/glm/detail/func_integer.inl \
@@ -742,6 +881,7 @@ projects/lewitt/CMakeFiles/lewitt.dir/ResourceManager.cpp.o: /home/delajor/Code/
   /home/delajor/Code/vermeer/ext/glm/detail/setup.hpp \
   /home/delajor/Code/vermeer/ext/glm/detail/type_half.hpp \
   /home/delajor/Code/vermeer/ext/glm/detail/type_half.inl \
+  /home/delajor/Code/vermeer/ext/glm/ext.hpp \
   /home/delajor/Code/vermeer/ext/glm/fwd.hpp \
   /home/delajor/Code/vermeer/ext/glm/glm.hpp \
   /home/delajor/Code/vermeer/ext/glm/integer.hpp \
@@ -758,6 +898,7 @@ projects/lewitt/CMakeFiles/lewitt.dir/ResourceManager.cpp.o: /home/delajor/Code/
   /home/delajor/Code/vermeer/include/tiny_obj_loader.h \
   /home/delajor/Code/vermeer/projects/lewitt/ResourceManager.h \
   /home/delajor/Code/vermeer/projects/lewitt/buffer_flags.h \
+  /home/delajor/Code/vermeer/projects/lewitt/common.h \
   /usr/include/alloca.h \
   /usr/include/asm-generic/errno-base.h \
   /usr/include/asm-generic/errno.h \
@@ -1643,6 +1784,7 @@ projects/lewitt/CMakeFiles/lewitt.dir/main.cpp.o: /home/delajor/Code/vermeer/pro
   /home/delajor/Code/vermeer/ext/webgpu-native/include/webgpu/webgpu.h \
   /home/delajor/Code/vermeer/ext/webgpu-native/include/webgpu/webgpu.hpp \
   /home/delajor/Code/vermeer/ext/webgpu-native/include/webgpu/wgpu.h \
+  /home/delajor/Code/vermeer/include/tiny_obj_loader.h \
   /home/delajor/Code/vermeer/projects/lewitt/Application.h \
   /home/delajor/Code/vermeer/projects/lewitt/ResourceManager.h \
   /home/delajor/Code/vermeer/projects/lewitt/bindings.hpp \
@@ -2042,6 +2184,8 @@ projects/lewitt/CMakeFiles/lewitt.dir/main.cpp.o: /home/delajor/Code/vermeer/pro
 /usr/include/x86_64-linux-gnu/bits/types/clock_t.h:
 
 /usr/include/x86_64-linux-gnu/bits/types/__fpos_t.h:
+
+/usr/include/x86_64-linux-gnu/bits/types/__fpos64_t.h:
 
 /home/delajor/Code/vermeer/ext/glm/gtc/reciprocal.hpp:
 
@@ -3188,5 +3332,3 @@ projects/lewitt/CMakeFiles/lewitt.dir/main.cpp.o: /home/delajor/Code/vermeer/pro
 /usr/include/x86_64-linux-gnu/bits/types/time_t.h:
 
 /usr/include/x86_64-linux-gnu/bits/types/FILE.h:
-
-/usr/include/x86_64-linux-gnu/bits/types/__fpos64_t.h:

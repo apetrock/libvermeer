@@ -28,7 +28,6 @@
 #include "buffer_flags.h"
 
 #include "stb_image.h"
-#include "tiny_obj_loader.h"
 
 #include <fstream>
 #include <cstring>
@@ -72,7 +71,7 @@ bool ResourceManager::loadGeometryFromObj(const path &path, std::vector<VertexAt
 	std::string err;
 
 	// Call the core loading procedure of TinyOBJLoader
-	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.string().c_str());
+	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.string().c_str(), "", true);
 
 	// Check errors
 	if (!warn.empty())
@@ -126,6 +125,12 @@ bool ResourceManager::loadGeometryFromObj(const path &path, std::vector<VertexAt
 
 	return true;
 }
+
+// TODO: fixme
+using path = std::filesystem::path;
+using vec3 = glm::vec3;
+using vec2 = glm::vec2;
+using mat3x3 = glm::mat3x3;
 
 // Auxiliary function for loadTexture
 static void writeMipMaps(
@@ -227,8 +232,8 @@ Texture ResourceManager::loadTexture(const path &path, Device device, TextureVie
 	textureDesc.size = {(unsigned int)width, (unsigned int)height, 1};
 	textureDesc.mipLevelCount = bit_width(std::max(textureDesc.size.width, textureDesc.size.height));
 	textureDesc.sampleCount = 1;
-	textureDesc.usage = lewitt::buffer_flags::texture_read;
-	
+	textureDesc.usage = lewitt::flags::texture::read;
+
 	textureDesc.viewFormatCount = 0;
 	textureDesc.viewFormats = nullptr;
 	Texture texture = device.createTexture(textureDesc);
@@ -341,30 +346,30 @@ void ResourceManager::populateTextureFrameAttributes(std::vector<VertexAttribute
 	}
 }
 
-std::pair<Texture, TextureView> ResourceManager::createEmptyStorageTextureAndView(const int &width, const int &height, wgpu::Device device,  const std::string & label){
-        wgpu::TextureDescriptor textureDesc;
-        textureDesc.dimension = wgpu::TextureDimension::_2D;
-        textureDesc.format = wgpu::TextureFormat::RGBA8Unorm;
-        textureDesc.size = {width, height, 1};
-        textureDesc.sampleCount = 1;
-        textureDesc.viewFormatCount = 0;
-        textureDesc.viewFormats = nullptr;
-        textureDesc.mipLevelCount = 1;
-        textureDesc.label = label.c_str();
-        textureDesc.usage = lewitt::buffer_flags::texture_write;
+std::pair<Texture, TextureView> ResourceManager::createEmptyStorageTextureAndView(const int &width, const int &height, wgpu::Device device, const std::string &label)
+{
+	wgpu::TextureDescriptor textureDesc;
+	textureDesc.dimension = wgpu::TextureDimension::_2D;
+	textureDesc.format = wgpu::TextureFormat::RGBA8Unorm;
+	textureDesc.size = {width, height, 1};
+	textureDesc.sampleCount = 1;
+	textureDesc.viewFormatCount = 0;
+	textureDesc.viewFormats = nullptr;
+	textureDesc.mipLevelCount = 1;
+	textureDesc.label = label.c_str();
+	textureDesc.usage = lewitt::flags::texture::write;
 
-        wgpu::TextureViewDescriptor textureViewDesc;
-        textureViewDesc.aspect = TextureAspect::All;
-        textureViewDesc.baseArrayLayer = 0;
-        textureViewDesc.arrayLayerCount = 1;
-        textureViewDesc.dimension = TextureViewDimension::_2D;
-        textureViewDesc.format = TextureFormat::RGBA8Unorm;
-        textureViewDesc.mipLevelCount = 1;
-        textureViewDesc.baseMipLevel = 0;
+	wgpu::TextureViewDescriptor textureViewDesc;
+	textureViewDesc.aspect = TextureAspect::All;
+	textureViewDesc.baseArrayLayer = 0;
+	textureViewDesc.arrayLayerCount = 1;
+	textureViewDesc.dimension = TextureViewDimension::_2D;
+	textureViewDesc.format = TextureFormat::RGBA8Unorm;
+	textureViewDesc.mipLevelCount = 1;
+	textureViewDesc.baseMipLevel = 0;
 
-        wgpu::Texture output_tex = device.createTexture(textureDesc);
-        textureViewDesc.label = label.c_str();
-        wgpu::TextureView output_tex_view = output_tex.createView(textureViewDesc);
-				return {output_tex, output_tex_view};
+	wgpu::Texture output_tex = device.createTexture(textureDesc);
+	textureViewDesc.label = label.c_str();
+	wgpu::TextureView output_tex_view = output_tex.createView(textureViewDesc);
+	return {output_tex, output_tex_view};
 }
-

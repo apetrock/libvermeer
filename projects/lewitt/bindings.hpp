@@ -83,7 +83,7 @@ namespace lewitt
 
         wgpu::BufferDescriptor bufferDesc;
         bufferDesc.size = _uniforms.size();
-        bufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
+        bufferDesc.usage = flags::uniform::read;
         bufferDesc.mappedAtCreation = false;
         std::cout << "creating buffer: " << bufferDesc.size << std::endl;
 
@@ -159,11 +159,11 @@ namespace lewitt
     {
     public:
       using ptr = std::shared_ptr<buffer>;
-      template <typename T>
+
       static ptr create()
       {
         ptr b = std::make_shared<buffer>();
-        b->_buffer = buffers::buffer::create<T>();
+        b->_buffer = buffers::buffer::create();
         return b;
       }
 
@@ -278,7 +278,8 @@ namespace lewitt
       {
         return _texture;
       }
-
+      
+      WGPUTextureFormat _format = wgpu::TextureFormat::RGBA8Unorm;
       WGPUTextureViewDimension _dim = wgpu::TextureViewDimension::_2D;
       WGPUTextureSampleType _sample_type;
       wgpu::Texture _texture = nullptr;
@@ -327,9 +328,8 @@ namespace lewitt
         textBindingLayout.storageTexture.format = _format;
         textBindingLayout.storageTexture.viewDimension = _dim;
       }
+
       WGPUStorageTextureAccess _access = wgpu::StorageTextureAccess::WriteOnly;
-      
-      WGPUTextureFormat _format = wgpu::TextureFormat::RGBA8Unorm;
     };
 
     //

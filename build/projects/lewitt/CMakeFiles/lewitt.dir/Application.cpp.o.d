@@ -513,6 +513,7 @@ projects/lewitt/CMakeFiles/lewitt.dir/Application.cpp.o: \
  /home/delajor/Code/vermeer/ext/glm/./gtc/type_ptr.inl \
  /home/delajor/Code/vermeer/ext/glm/./gtc/ulp.hpp \
  /home/delajor/Code/vermeer/ext/glm/./gtc/ulp.inl \
+ /usr/include/c++/11/sstream /usr/include/c++/11/bits/sstream.tcc \
  /home/delajor/Code/vermeer/projects/lewitt/uniforms.hpp \
  /usr/include/c++/11/stack /usr/include/c++/11/deque \
  /usr/include/c++/11/bits/stl_deque.h /usr/include/c++/11/bits/deque.tcc \
@@ -530,9 +531,9 @@ projects/lewitt/CMakeFiles/lewitt.dir/Application.cpp.o: \
  /usr/include/libintl.h /usr/include/c++/11/bits/codecvt.h \
  /usr/include/c++/11/bits/locale_facets_nonio.tcc \
  /usr/include/c++/11/bits/locale_conv.h /usr/include/c++/11/iomanip \
- /usr/include/c++/11/bits/quoted_string.h /usr/include/c++/11/sstream \
- /usr/include/c++/11/bits/sstream.tcc /usr/include/c++/11/codecvt \
+ /usr/include/c++/11/bits/quoted_string.h /usr/include/c++/11/codecvt \
  /usr/include/c++/11/bits/fs_dir.h /usr/include/c++/11/bits/fs_ops.h \
+ /home/delajor/Code/vermeer/include/tiny_obj_loader.h \
  /home/delajor/Code/vermeer/projects/lewitt/bindings.hpp \
  /home/delajor/Code/vermeer/projects/lewitt/buffers.hpp \
  /home/delajor/Code/vermeer/projects/lewitt/vertex_formats.hpp \

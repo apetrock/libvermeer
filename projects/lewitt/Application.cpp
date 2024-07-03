@@ -87,22 +87,14 @@ bool Application::onInit()
 		return false;
 	if (!initTextures())
 		return false;
+
 	if (!initUniforms())
 		return false;
 	if (!initTestCompute())
 		return false;
 	if (!initLightingUniforms())
 		return false;
-	if (!initBindGroupLayout())
-		return false;
-	if (!initRenderPipeline())
-		return false;
 
-	if (!initGeometry())
-		return false;
-
-	if (!initBindGroup())
-		return false;
 	if (!initRenderables())
 		return false;
 	if (!initGui())
@@ -113,6 +105,7 @@ bool Application::onInit()
 void Application::onFrame()
 {
 	onCompute();
+	
 	glfwPollEvents();
 	updateDragInertia();
 	updateLightingUniforms();
@@ -355,6 +348,17 @@ bool Application::initWindowAndDevice()
 	//                                                       ^ This was 1
 	requiredLimits.limits.maxSamplersPerShaderStage = 1;
 
+	requiredLimits.limits.maxVertexBufferArrayStride = 68;
+	requiredLimits.limits.maxStorageBuffersPerShaderStage = 8;
+	requiredLimits.limits.maxComputeWorkgroupSizeX = 256;
+	requiredLimits.limits.maxComputeWorkgroupSizeY = 256;
+	requiredLimits.limits.maxComputeWorkgroupSizeZ = 64;
+	requiredLimits.limits.maxComputeInvocationsPerWorkgroup = 64;
+	requiredLimits.limits.maxComputeWorkgroupsPerDimension = 1024;
+	requiredLimits.limits.maxStorageBufferBindingSize = 1500000 * sizeof(VertexAttributes);;
+	requiredLimits.limits.maxStorageTexturesPerShaderStage = 1;
+
+
 	DeviceDescriptor deviceDesc;
 	deviceDesc.label = "My Device";
 	deviceDesc.requiredFeaturesCount = 0;
@@ -519,12 +523,6 @@ bool Application::initTextures()
 	return true;
 }
 
-bool Application::initGeometry()
-{
-	_geometry = lewitt::buffers::load_cylinder(m_device);
-	return _geometry->valid();
-}
-
 bool Application::initUniforms()
 {
 
@@ -585,18 +583,14 @@ void Application::updateLightingUniforms()
 	//_lighting_uniform_binding->update(m_lightingUniforms, m_queue);
 }
 
-bool Application::initBindGroupLayout()
-{
-	return _bind_group->init_layout(m_device);
-}
-
-bool Application::initBindGroup()
-{
-	return _bind_group->init(m_device);
-}
-
 bool Application::initRenderables()
 {
+	auto [foo, bar] = lewitt::buffers::load_bunny(m_device);
+	_geometry = lewitt::buffers::load_cylinder(m_device);
+	_bind_group->init_layout(m_device);
+	_ncuvtb_shader = lewitt::shaders::NCUVTB::create(m_device);
+	_ncuvtb_shader->init(m_device, _bind_group->get_layout(), m_swapChainFormat, m_depthTextureFormat);
+	_bind_group->init(m_device);
 	_cylinder = lewitt::doables::renderable::create(
 			_geometry, _bind_group, _ncuvtb_shader);
 	return true;

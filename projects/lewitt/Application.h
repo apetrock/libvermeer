@@ -81,8 +81,6 @@ private:
 
 	bool initTextures();
 
-	bool initGeometry();
-
 	bool initUniforms();
 
 	bool initTestCompute();
@@ -90,9 +88,6 @@ private:
 	bool initLightingUniforms();
 	void updateLightingUniforms();
 
-	bool initBindGroupLayout();
-
-	bool initBindGroup();
 	bool initRenderables();
 
 	void updateProjectionMatrix();

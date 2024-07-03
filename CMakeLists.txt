@@ -12,7 +12,13 @@ set(
   CXX_EXTENSIONS OFF
   COMPILE_WARNING_AS_ERROR ON
 )
+if (CMAKE_BUILD_TYPE MATCHES "ASAN")
+  # Add sanitizer options
+  add_compile_options(-fsanitize=address,undefined)
 
+  # Enable address sanitizer
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+endif()
 
 # Add the cmake_modules directory to CMAKE_MODULE_PATH
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules")
