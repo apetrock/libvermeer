@@ -159,7 +159,7 @@ private:
 	lewitt::doables::renderable::ptr _cylinder;
 	lewitt::shaders::NCUVTB::ptr _ncuvtb_shader;
 	lewitt::buffers::buffer::ptr _geometry;
-	int _u_id = -1, _u_lighting_id = -1;
+	int _u_scene_id, _u_obj_id = -1, _u_lighting_id = -1;
 	lewitt::bindings::group::ptr _bind_group = nullptr;
 
 	lewitt::doables::ray_compute::ptr _ray_compute;

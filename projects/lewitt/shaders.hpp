@@ -92,7 +92,7 @@ namespace lewitt
       NCUVTB(wgpu::Device &device)
       {
         std::cout << "Creating shader module..." << std::endl;
-        this->shaderModule = ResourceManager::loadShaderModule(RESOURCE_DIR "/shader.wgsl", device);
+        this->shaderModule = ResourceManager::loadShaderModule(RESOURCE_DIR "/ncuvtb.wgsl", device);
       }
       ~NCUVTB()
       {

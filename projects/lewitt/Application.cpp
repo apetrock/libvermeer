@@ -105,11 +105,11 @@ bool Application::onInit()
 void Application::onFrame()
 {
 	onCompute();
-	
+
 	glfwPollEvents();
 	updateDragInertia();
 	updateLightingUniforms();
-	_bind_group->get_uniform_binding(_u_id)->set_member("time", static_cast<float>(glfwGetTime()));
+	_bind_group->get_uniform_binding(_u_scene_id)->set_member("time", static_cast<float>(glfwGetTime()));
 	// m_uniforms.time = static_cast<float>(glfwGetTime());
 	// m_queue.writeBuffer(m_uniformBuffer, offsetof(MyUniforms, time), &m_uniforms.time, sizeof(MyUniforms::time));
 
@@ -180,7 +180,6 @@ void Application::onFrame()
 	m_device.tick();
 #endif
 }
-
 
 void Application::onCompute()
 {
@@ -327,18 +326,21 @@ bool Application::initWindowAndDevice()
 	adapter.getLimits(&supportedLimits);
 
 	std::cout << "Requesting device..." << std::endl;
+
 	RequiredLimits requiredLimits = Default;
-	requiredLimits.limits.maxVertexAttributes = 6;
+	requiredLimits.limits.maxVertexAttributes = 12;
 	//                                          ^ This was a 4
 	requiredLimits.limits.maxVertexBuffers = 1;
 	requiredLimits.limits.maxBufferSize = 1500000 * sizeof(VertexAttributes);
-	requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes);
+	// requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes);
+	requiredLimits.limits.maxVertexBufferArrayStride = 128;
+
 	requiredLimits.limits.minStorageBufferOffsetAlignment = supportedLimits.limits.minStorageBufferOffsetAlignment;
 	requiredLimits.limits.minUniformBufferOffsetAlignment = supportedLimits.limits.minUniformBufferOffsetAlignment;
-	requiredLimits.limits.maxInterStageShaderComponents = 17;
+	requiredLimits.limits.maxInterStageShaderComponents = 32;
 	//                                                    ^^ This was a 11
 	requiredLimits.limits.maxBindGroups = 4;
-	requiredLimits.limits.maxUniformBuffersPerShaderStage = 4;
+	requiredLimits.limits.maxUniformBuffersPerShaderStage = 8;
 	requiredLimits.limits.maxUniformBufferBindingSize = 32 * 4 * sizeof(float);
 	// Allow textures up to 2K
 	requiredLimits.limits.maxTextureDimension1D = 2048;
@@ -348,16 +350,15 @@ bool Application::initWindowAndDevice()
 	//                                                       ^ This was 1
 	requiredLimits.limits.maxSamplersPerShaderStage = 1;
 
-	requiredLimits.limits.maxVertexBufferArrayStride = 68;
 	requiredLimits.limits.maxStorageBuffersPerShaderStage = 8;
 	requiredLimits.limits.maxComputeWorkgroupSizeX = 256;
 	requiredLimits.limits.maxComputeWorkgroupSizeY = 256;
 	requiredLimits.limits.maxComputeWorkgroupSizeZ = 64;
 	requiredLimits.limits.maxComputeInvocationsPerWorkgroup = 64;
 	requiredLimits.limits.maxComputeWorkgroupsPerDimension = 1024;
-	requiredLimits.limits.maxStorageBufferBindingSize = 1500000 * sizeof(VertexAttributes);;
+	requiredLimits.limits.maxStorageBufferBindingSize = 1500000 * sizeof(VertexAttributes);
+	;
 	requiredLimits.limits.maxStorageTexturesPerShaderStage = 1;
-
 
 	DeviceDescriptor deviceDesc;
 	deviceDesc.label = "My Device";
@@ -511,9 +512,9 @@ bool Application::initTextures()
 			ResourceManager::loadTextureAndView(RESOURCE_DIR "/cobblestone_floor_08_nor_gl_2k.png", m_device));
 	normal_texture_binding->set_frag_float_2d();
 
-	_bind_group->assign(1, base_texture_binding);
-	_bind_group->assign(2, normal_texture_binding);
-	_bind_group->assign(3, sampler_binding);
+	_bind_group->assign(3, base_texture_binding);
+	_bind_group->assign(4, normal_texture_binding);
+	_bind_group->assign(5, sampler_binding);
 
 	if (!normal_texture_binding->valid())
 	{
@@ -530,22 +531,37 @@ bool Application::initUniforms()
 
 	// Create uniform buffer
 	std::cout << "init my uniforms" << std::endl;
-	lewitt::bindings::uniform::ptr my_uniform_binding =
-			lewitt::bindings::uniform::create<mat4, mat4, mat4, vec4, vec3, float>(
-					{"projectionMatrix", "viewMatrix", "modelMatrix", "color", "cameraWorldPosition", "time"}, m_device);
-	my_uniform_binding->set_visibility(ShaderStage::Vertex | ShaderStage::Fragment);
-	my_uniform_binding->set_member("modelMatrix", mat4x4(1.0));
-	my_uniform_binding->set_member("viewMatrix", glm::lookAt(vec3(-2.0f, -3.0f, 2.0f), vec3(0.0f), vec3(0, 0, 1)));
-	my_uniform_binding->set_member("projectionMatrix", glm::perspective(45 * PI / 180, 640.0f / 480.0f, 0.01f, 100.0f));
-	my_uniform_binding->set_member("time", 1.0f);
-	my_uniform_binding->set_member("color", vec4(0.0f, 1.0f, 0.4f, 1.0f));
-	_u_id = _bind_group->assign(0, my_uniform_binding);
+	lewitt::bindings::uniform::ptr obj_binding =
+			lewitt::bindings::uniform::create<mat4, vec4>(
+					{"modelMatrix",
+					 "color"},
+					m_device);
+	obj_binding->set_visibility(ShaderStage::Vertex | ShaderStage::Fragment);
+	obj_binding->set_member("modelMatrix", mat4x4(1.0));
+	obj_binding->set_member("color", vec4(0.0f, 1.0f, 0.4f, 1.0f));
+	_u_obj_id = _bind_group->assign(0, obj_binding);
+	std::cout << "obj_size: " << obj_binding->_uniforms.size() << std::endl;
+	lewitt::bindings::uniform::ptr scene_binding =
+			lewitt::bindings::uniform::create<mat4, mat4, vec3, float>(
+					{"projectionMatrix",
+					 "viewMatrix",
+					 "cameraWorldPosition",
+					 "time"},
+					m_device);
+	scene_binding->set_visibility(ShaderStage::Vertex | ShaderStage::Fragment);
+	scene_binding->set_member("viewMatrix", glm::lookAt(vec3(-2.0f, -3.0f, 2.0f), vec3(0.0f), vec3(0, 0, 1)));
+	scene_binding->set_member("projectionMatrix", glm::perspective(45 * PI / 180, 640.0f / 480.0f, 0.01f, 100.0f));
+	scene_binding->set_member("time", 1.0f);
+	std::cout << "scene_size: " << scene_binding->_uniforms.size() << std::endl;
+	_u_scene_id = _bind_group->assign(1, scene_binding);
+
 	updateProjectionMatrix();
 	updateViewMatrix();
-	return my_uniform_binding->valid();
+	return obj_binding->valid() && scene_binding->valid();
 }
 
-bool Application::initTestCompute(){
+bool Application::initTestCompute()
+{
 	_ray_compute = lewitt::doables::ray_compute::create(m_device);
 	_ray_compute->init_textures(m_device);
 	_ray_compute->init_shader_pipeline(m_device);
@@ -565,12 +581,11 @@ bool Application::initLightingUniforms()
 	lighting_uniform_binding->set_member("directions", dirs);
 	vec4x2 colors = {vec4({1.0f, 0.9f, 0.6f, 1.0f}), vec4(0.6f, 0.9f, 1.0f, 1.0f)};
 	lighting_uniform_binding->set_member("colors", colors);
-
 	lighting_uniform_binding->set_member("hardness", 32.0f);
 	lighting_uniform_binding->set_member("kd", 1.0f);
 	lighting_uniform_binding->set_member("ks", 0.5f);
 	lighting_uniform_binding->set_member("pad", 0.0f);
-	_u_lighting_id = _bind_group->assign(4, lighting_uniform_binding);
+	_u_lighting_id = _bind_group->assign(2, lighting_uniform_binding);
 
 	lewitt::uniforms::test_structish();
 	updateLightingUniforms();
@@ -599,12 +614,17 @@ bool Application::initRenderables()
 void Application::updateProjectionMatrix()
 {
 	// Update projection matrix
+	using mat4 = lewitt::bindings::mat4;
+
 	std::cout << "update projection" << std::endl;
 	int width, height;
 	glfwGetFramebufferSize(m_window, &width, &height);
 	float ratio = width / (float)height;
-	lewitt::bindings::uniform::ptr uniforms = _bind_group->get_uniform_binding(_u_id);
+	lewitt::bindings::uniform::ptr uniforms = _bind_group->get_uniform_binding(_u_scene_id);
 	uniforms->set_member("projectionMatrix", glm::perspective(45 * PI / 180, ratio, 0.01f, 100.0f));
+	mat4 P = uniforms->get_member<mat4>("projectionMatrix");
+	std::cout << "proj: " << spaced_out(P[0][0], P[0][1], P[0][2], P[0][3]) << std::endl;
+
 	uniforms->update(m_queue);
 }
 
@@ -616,7 +636,7 @@ void Application::updateViewMatrix()
 	float cy = cos(m_cameraState.angles.y);
 	float sy = sin(m_cameraState.angles.y);
 	vec3 position = vec3(cx * cy, sx * cy, sy) * std::exp(-m_cameraState.zoom);
-	lewitt::bindings::uniform::ptr uniforms = _bind_group->get_uniform_binding(_u_id);
+	lewitt::bindings::uniform::ptr uniforms = _bind_group->get_uniform_binding(_u_scene_id);
 	uniforms->set_member("viewMatrix", glm::lookAt(position, vec3(0.0f), vec3(0, 0, 1)));
 	uniforms->set_member("cameraWorldPosition", position);
 	uniforms->update(m_queue);

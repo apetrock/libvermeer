@@ -102,6 +102,11 @@ namespace lewitt
         _uniforms.set<T>(mem, val);
         __update_queue.push({offset, size});
       }
+      
+      template <typename T>
+      T get_member(const std::string & name){
+        return _uniforms.get<T>(name);
+      }
 
       virtual void update(wgpu::Queue &queue)
       {
