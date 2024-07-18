@@ -13,6 +13,13 @@ namespace lewitt
     GLM_TYPEDEFS;
     using vec4x2 = std::array<vec4, 2>;
 
+    //this unforturnately doesn't offer the interface that I want 
+    template <typename T, const char * NAME>
+    struct member{
+      using type = T;
+      static constexpr char * name = NAME;
+    };
+
     class structish
     {
     public:
@@ -33,7 +40,6 @@ namespace lewitt
           delete[] __data;
 
         __size = other.__size;
-        __sizes = other.__sizes;
         __size_map = other.__size_map;
         __offsets = other.__offsets;
         if (other.__data)
@@ -47,7 +53,6 @@ namespace lewitt
 
       structish(structish &&other) noexcept : __size(__size),
                                               __data(std::exchange(other.__data, nullptr)),
-                                              __sizes(std::move(other.__sizes)),
                                               __size_map(std::move(other.__size_map)),
                                               __offsets(std::move(other.__offsets)) {}
 
@@ -59,7 +64,6 @@ namespace lewitt
       structish &operator=(structish &&other) noexcept
       {
         __data = std::exchange(other.__data, nullptr);
-        __sizes = std::move(other.__sizes);
         __offsets = std::move(__offsets);
         __size_map = std::move(__size_map);
         __size = other.__size;
@@ -74,15 +78,36 @@ namespace lewitt
           throw std::invalid_argument("Number of names must match the number of types");
         }
         // Initialize the offset map and allocate memory
-        std::vector<size_t> __sizes = {sizeof(Types)...};
+        std::vector<size_t> sizes = {sizeof(Types)...};
         std::size_t offset = 0;
         auto name_iter = names.begin();
-        for (const auto &size : __sizes)
+        for (const auto &size : sizes)
         {
           __size_map[*name_iter] = size;
           __offsets[*name_iter] = offset;
           offset += size;
           ++name_iter;
+        }
+
+        __size = offset;
+        __data = new char[offset];
+        std::memset(__data, 0, offset);
+      }
+
+
+      template <typename... NamedTypes>
+      void init_types()
+      {
+        std::vector<size_t> sizes = {sizeof(NamedTypes::type)...};
+        std::vector<std::string> names = {sizeof(NamedTypes::name)...};
+        std::size_t offset = 0;
+        int i = 0;
+        for (const auto &size : sizes)
+        {
+          __size_map[names[i]] = size;
+          __offsets[names[i]] = offset;
+          offset += size;
+          ++i;
         }
 
         __size = offset;
@@ -132,7 +157,7 @@ namespace lewitt
       size_t offset(const std::string &mem) { return __offsets[mem]; }
 
     private:
-      std::vector<std::size_t> __sizes;
+    
       std::map<std::string, std::size_t> __size_map;
       std::map<std::string, std::size_t> __offsets;
       char *__data = nullptr;

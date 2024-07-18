@@ -65,6 +65,14 @@ namespace lewitt
         return out;
       }
 
+      template <typename... NamedTypes>
+      static ptr create(wgpu::Device &device)
+      {
+        ptr out = std::make_shared<uniform>();
+        out->init<NamedTypes...>(device);
+        return out;
+      }
+
       uniform()
       {
       }
@@ -89,6 +97,23 @@ namespace lewitt
 
         _buffer = device.createBuffer(bufferDesc);
       }
+
+      template <typename... NamedTypes>
+      void init(wgpu::Device &device)
+      {
+
+        _uniforms.init_types<NamedTypes...>();
+        _w_min = _uniforms.size();
+
+        wgpu::BufferDescriptor bufferDesc;
+        bufferDesc.size = _uniforms.size();
+        bufferDesc.usage = flags::uniform::read;
+        bufferDesc.mappedAtCreation = false;
+        std::cout << "creating buffer: " << bufferDesc.size << std::endl;
+
+        _buffer = device.createBuffer(bufferDesc);
+      }
+
 
       template <typename T>
       void set_member(const std::string &mem, T val)

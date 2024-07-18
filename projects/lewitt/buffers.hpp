@@ -38,10 +38,14 @@ namespace lewitt
         return std::make_shared<buffer>();
       }
       template <typename FORMAT>
-      static ptr create(const std::vector<FORMAT> &vertexData, wgpu::Device &device)
+      static ptr create(
+          const std::vector<FORMAT> &vertexData,
+          wgpu::Device &device,
+          WGPUBufferUsageFlags usage = flags::vertex::read)
       {
         auto buf = std::make_shared<buffer>();
-        //buf->init(vertexData.size(), device);
+        buf->set_usage(usage);
+        // buf->init(vertexData.size(), device);
         if (buf->write<FORMAT>(vertexData, device))
           return buf;
         else
@@ -60,11 +64,14 @@ namespace lewitt
       bool init(size_t count, wgpu::Device &device)
       {
         wgpu::BufferDescriptor bufferDesc;
-        
+        std::cout << "usage in init: " << _usage << std::endl;
         if (!_label.empty())
           bufferDesc.label = _label.c_str();
 
         bufferDesc.size = count * _sizeof_format;
+        std::cout << "size before: " << bufferDesc.size << std::endl;
+        bufferDesc.size = (bufferDesc.size + 3) & ~0x3; // must be multiples of 4
+        std::cout << "size after: " << bufferDesc.size << std::endl;
         bufferDesc.usage = _usage;
         bufferDesc.mappedAtCreation = false;
 
@@ -79,17 +86,12 @@ namespace lewitt
 
         if (!_vertexBuffer)
           init(vertexData.size(), device);
-       
+
         wgpu::Queue queue = device.getQueue();
         _count = static_cast<size_t>(vertexData.size());
-        
+
         queue.writeBuffer(_vertexBuffer, 0, vertexData.data(), size());
         return _vertexBuffer != nullptr;
-      }
-
-      void set_current(wgpu::RenderPassEncoder render_pass)
-      {
-        render_pass.setVertexBuffer(0, _vertexBuffer, 0, _vertexBuffer.getSize());
       }
 
       bool valid()
@@ -119,11 +121,10 @@ namespace lewitt
     inline buffer::ptr load_cylinder(wgpu::Device &device)
     {
       wgpu::Queue queue = device.getQueue();
-      
 
-      std::vector<lewitt::vertex_formats::NCUVTB_t> vertexData =
-          load_obj<lewitt::vertex_formats::NCUVTB_t>(RESOURCE_DIR "/cylinder.obj");
-      
+      std::vector<lewitt::vertex_formats::PNCUVTB_t> vertexData =
+          load_obj<lewitt::vertex_formats::PNCUVTB_t>(RESOURCE_DIR "/cylinder.obj");
+
       buffer::ptr buffer = buffer::create(vertexData, device);
       return buffer;
     }
@@ -131,11 +132,9 @@ namespace lewitt
     inline std::array<buffer::ptr, 2> load_bunny(wgpu::Device &device)
     {
       auto [indices, attributes] =
-          ResourceManager::load_geometry_from_obj<lewitt::vertex_formats::N_t>(RESOURCE_DIR "/bunny.obj");
-      buffer::ptr attr_buffer = buffer::create<lewitt::vertex_formats::N_t>(attributes, device);
-      attr_buffer->set_usage(flags::vertex::read);
-      buffer::ptr index_buffer = buffer::create<uint32_t>(indices, device);
-      index_buffer->set_usage(flags::index::read);
+          ResourceManager::load_geometry_from_obj<lewitt::vertex_formats::PN_t>(RESOURCE_DIR "/bunny.obj");
+      buffer::ptr attr_buffer = buffer::create<lewitt::vertex_formats::PN_t>(attributes, device, flags::vertex::read);
+      buffer::ptr index_buffer = buffer::create<uint32_t>(indices, device, flags::index::read);
 
       return {index_buffer, attr_buffer};
     }

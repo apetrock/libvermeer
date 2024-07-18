@@ -77,7 +77,6 @@ namespace ImGui
 
 bool Application::onInit()
 {
-	_bind_group = lewitt::bindings::group::create();
 
 	if (!initWindowAndDevice())
 		return false;
@@ -85,6 +84,10 @@ bool Application::onInit()
 		return false;
 	if (!initDepthBuffer())
 		return false;
+
+	if (!initRenderables())
+		return false;
+
 	if (!initTextures())
 		return false;
 
@@ -95,8 +98,6 @@ bool Application::onInit()
 	if (!initLightingUniforms())
 		return false;
 
-	if (!initRenderables())
-		return false;
 	if (!initGui())
 		return false;
 	return true;
@@ -109,7 +110,7 @@ void Application::onFrame()
 	glfwPollEvents();
 	updateDragInertia();
 	updateLightingUniforms();
-	_bind_group->get_uniform_binding(_u_scene_id)->set_member("time", static_cast<float>(glfwGetTime()));
+	_cylinder->get_bindings()->get_uniform_binding(_u_id)->set_member("time", static_cast<float>(glfwGetTime()));
 	// m_uniforms.time = static_cast<float>(glfwGetTime());
 	// m_queue.writeBuffer(m_uniformBuffer, offsetof(MyUniforms, time), &m_uniforms.time, sizeof(MyUniforms::time));
 
@@ -157,7 +158,8 @@ void Application::onFrame()
 	renderPassDesc.timestampWrites = nullptr;
 	RenderPassEncoder renderPass = encoder.beginRenderPass(renderPassDesc);
 
-	_cylinder->draw(renderPass);
+	//_cylinder->draw(renderPass, m_device);
+	_bunny->draw(renderPass, m_device);
 	// We add the GUI drawing commands to the render pass
 	updateGui(renderPass);
 
@@ -194,7 +196,7 @@ void Application::onCompute()
 	computePassDesc.timestampWrites = nullptr;
 
 	ComputePassEncoder computePass = encoder.beginComputePass(computePassDesc);
-	_ray_compute->compute(computePass);
+	_ray_compute->compute(computePass, m_device);
 	computePass.end();
 
 	// Encode and submit the GPU commands
@@ -212,7 +214,6 @@ void Application::onCompute()
 void Application::onFinish()
 {
 	terminateGui();
-	terminateRenderPipeline();
 	terminateDepthBuffer();
 	terminateSwapChain();
 	terminateWindowAndDevice();
@@ -481,14 +482,11 @@ void Application::terminateDepthBuffer()
 	m_depthTexture.release();
 }
 
-bool Application::initRenderPipeline()
+bool Application::initTestCompute()
 {
-	_ncuvtb_shader = lewitt::shaders::NCUVTB::create(m_device);
-	return _ncuvtb_shader->init(m_device, _bind_group->get_layout(), m_swapChainFormat, m_depthTextureFormat);
-}
-
-void Application::terminateRenderPipeline()
-{
+	_ray_compute = lewitt::doables::ray_compute::create(m_device);
+	_ray_compute->init_textures(m_device);
+	return true;
 }
 
 bool Application::initTextures()
@@ -512,9 +510,10 @@ bool Application::initTextures()
 			ResourceManager::loadTextureAndView(RESOURCE_DIR "/cobblestone_floor_08_nor_gl_2k.png", m_device));
 	normal_texture_binding->set_frag_float_2d();
 
-	_bind_group->assign(3, base_texture_binding);
-	_bind_group->assign(4, normal_texture_binding);
-	_bind_group->assign(5, sampler_binding);
+	// worth making specifica doables for types of shaders/properties
+	_cylinder->get_bindings()->assign(2, base_texture_binding);
+	_cylinder->get_bindings()->assign(3, normal_texture_binding);
+	_cylinder->get_bindings()->assign(4, sampler_binding);
 
 	if (!normal_texture_binding->valid())
 	{
@@ -531,41 +530,28 @@ bool Application::initUniforms()
 
 	// Create uniform buffer
 	std::cout << "init my uniforms" << std::endl;
-	lewitt::bindings::uniform::ptr obj_binding =
-			lewitt::bindings::uniform::create<mat4, vec4>(
-					{"modelMatrix",
-					 "color"},
-					m_device);
-	obj_binding->set_visibility(ShaderStage::Vertex | ShaderStage::Fragment);
-	obj_binding->set_member("modelMatrix", mat4x4(1.0));
-	obj_binding->set_member("color", vec4(0.0f, 1.0f, 0.4f, 1.0f));
-	_u_obj_id = _bind_group->assign(0, obj_binding);
-	std::cout << "obj_size: " << obj_binding->_uniforms.size() << std::endl;
-	lewitt::bindings::uniform::ptr scene_binding =
-			lewitt::bindings::uniform::create<mat4, mat4, vec3, float>(
+	lewitt::bindings::uniform::ptr uniform_binding =
+			lewitt::bindings::uniform::create<mat4, mat4, mat4, vec4, vec3, float>(
 					{"projectionMatrix",
 					 "viewMatrix",
+					 "modelMatrix",
+					 "color",
 					 "cameraWorldPosition",
 					 "time"},
 					m_device);
-	scene_binding->set_visibility(ShaderStage::Vertex | ShaderStage::Fragment);
-	scene_binding->set_member("viewMatrix", glm::lookAt(vec3(-2.0f, -3.0f, 2.0f), vec3(0.0f), vec3(0, 0, 1)));
-	scene_binding->set_member("projectionMatrix", glm::perspective(45 * PI / 180, 640.0f / 480.0f, 0.01f, 100.0f));
-	scene_binding->set_member("time", 1.0f);
-	std::cout << "scene_size: " << scene_binding->_uniforms.size() << std::endl;
-	_u_scene_id = _bind_group->assign(1, scene_binding);
+	uniform_binding->set_visibility(ShaderStage::Vertex | ShaderStage::Fragment);
+	uniform_binding->set_member("modelMatrix", mat4x4(1.0));
+	uniform_binding->set_member("color", vec4(0.0f, 1.0f, 0.4f, 1.0f));
+	uniform_binding->set_member("viewMatrix", glm::lookAt(vec3(-2.0f, -3.0f, 2.0f), vec3(0.0f), vec3(0, 0, 1)));
+	uniform_binding->set_member("projectionMatrix", glm::perspective(45 * PI / 180, 640.0f / 480.0f, 0.01f, 100.0f));
+	uniform_binding->set_member("time", 1.0f);
+	std::cout << "scene_size: " << uniform_binding->_uniforms.size() << std::endl;
+	_u_id = _cylinder->get_bindings()->assign(0, uniform_binding);
+	_u_id = _bunny->get_bindings()->assign(0, uniform_binding);
 
 	updateProjectionMatrix();
 	updateViewMatrix();
-	return obj_binding->valid() && scene_binding->valid();
-}
-
-bool Application::initTestCompute()
-{
-	_ray_compute = lewitt::doables::ray_compute::create(m_device);
-	_ray_compute->init_textures(m_device);
-	_ray_compute->init_shader_pipeline(m_device);
-	return true;
+	return uniform_binding->valid();
 }
 
 bool Application::initLightingUniforms()
@@ -585,7 +571,8 @@ bool Application::initLightingUniforms()
 	lighting_uniform_binding->set_member("kd", 1.0f);
 	lighting_uniform_binding->set_member("ks", 0.5f);
 	lighting_uniform_binding->set_member("pad", 0.0f);
-	_u_lighting_id = _bind_group->assign(2, lighting_uniform_binding);
+	_u_lighting_id = _cylinder->get_bindings()->assign(1, lighting_uniform_binding);
+	_u_lighting_id = _bunny->get_bindings()->assign(1, lighting_uniform_binding);
 
 	lewitt::uniforms::test_structish();
 	updateLightingUniforms();
@@ -594,20 +581,39 @@ bool Application::initLightingUniforms()
 
 void Application::updateLightingUniforms()
 {
-	_bind_group->get_uniform_binding(_u_lighting_id)->update(m_queue);
+	_cylinder->get_bindings()->get_uniform_binding(_u_lighting_id)->update(m_queue);
+	_bunny->get_bindings()->get_uniform_binding(_u_lighting_id)->update(m_queue);
 	//_lighting_uniform_binding->update(m_lightingUniforms, m_queue);
+}
+
+bool Application::initBunny() {return true;}
+bool Application::initBunnyInstanced()
+{
+
+	auto [index_buffer, attr_buffer] = lewitt::buffers::load_bunny(m_device);
+	_bunny = lewitt::doables::renderable::create(
+			index_buffer, attr_buffer,
+			lewitt::shaders::shader_t<vec3, vec3, vec3>::create(RESOURCE_DIR "/pnc.wgsl",m_device));
+
+	std::vector<vec3> color = {vec3(0.1, 0.3, 0.8)};
+	lewitt::buffers::buffer::ptr color_attr_buffer =
+			lewitt::buffers::buffer::create<vec3>(color, m_device,
+																						lewitt::flags::vertex::read);
+	_bunny->append_attribute_buffer(color_attr_buffer);
+	_bunny->set_texture_format(m_swapChainFormat, m_depthTextureFormat);
+	return true;
 }
 
 bool Application::initRenderables()
 {
-	auto [foo, bar] = lewitt::buffers::load_bunny(m_device);
-	_geometry = lewitt::buffers::load_cylinder(m_device);
-	_bind_group->init_layout(m_device);
-	_ncuvtb_shader = lewitt::shaders::NCUVTB::create(m_device);
-	_ncuvtb_shader->init(m_device, _bind_group->get_layout(), m_swapChainFormat, m_depthTextureFormat);
-	_bind_group->init(m_device);
+
 	_cylinder = lewitt::doables::renderable::create(
-			_geometry, _bind_group, _ncuvtb_shader);
+			lewitt::buffers::load_cylinder(m_device),
+			lewitt::shaders::PNCUVTB::create(m_device));
+
+	_cylinder->set_texture_format(m_swapChainFormat, m_depthTextureFormat);
+
+	bool bunny_inited = initBunny() && initBunnyInstanced();
 	return true;
 }
 
@@ -620,7 +626,7 @@ void Application::updateProjectionMatrix()
 	int width, height;
 	glfwGetFramebufferSize(m_window, &width, &height);
 	float ratio = width / (float)height;
-	lewitt::bindings::uniform::ptr uniforms = _bind_group->get_uniform_binding(_u_scene_id);
+	lewitt::bindings::uniform::ptr uniforms = _cylinder->get_bindings()->get_uniform_binding(_u_id);
 	uniforms->set_member("projectionMatrix", glm::perspective(45 * PI / 180, ratio, 0.01f, 100.0f));
 	mat4 P = uniforms->get_member<mat4>("projectionMatrix");
 	std::cout << "proj: " << spaced_out(P[0][0], P[0][1], P[0][2], P[0][3]) << std::endl;
@@ -636,7 +642,7 @@ void Application::updateViewMatrix()
 	float cy = cos(m_cameraState.angles.y);
 	float sy = sin(m_cameraState.angles.y);
 	vec3 position = vec3(cx * cy, sx * cy, sy) * std::exp(-m_cameraState.zoom);
-	lewitt::bindings::uniform::ptr uniforms = _bind_group->get_uniform_binding(_u_scene_id);
+	lewitt::bindings::uniform::ptr uniforms = _cylinder->get_bindings()->get_uniform_binding(_u_id);
 	uniforms->set_member("viewMatrix", glm::lookAt(position, vec3(0.0f), vec3(0, 0, 1)));
 	uniforms->set_member("cameraWorldPosition", position);
 	uniforms->update(m_queue);

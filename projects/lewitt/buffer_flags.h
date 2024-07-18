@@ -30,6 +30,8 @@ namespace lewitt
         {
             inline constexpr WGPUBufferUsageFlags read =
                 (wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Index);
+            inline constexpr WGPUBufferUsageFlags vertex_read =
+                (wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Index | wgpu::BufferUsage::Vertex);
         }
         namespace texture
         {

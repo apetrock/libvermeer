@@ -21,17 +21,68 @@ namespace lewitt
     {
     public:
       using ptr = std::shared_ptr<doable>;
-      doable() {}
+      doable()
+      {
+        std::cout << "making bindings" << std::endl;
+        _bindings = bindings::group::create();
+      }
+
       ~doable() {}
 
       void set_bindings(const bindings::group::ptr &bindings)
       {
         _bindings = bindings;
       }
+
+      bindings::group::ptr get_bindings()
+      {
+        return _bindings;
+      }
+
       void set_shader(const shaders::shader::ptr &shader)
       {
         _shader = shader;
       }
+
+      bool texture_format_defined()
+      {
+        return _color_format != wgpu::TextureFormat::Undefined &&
+               _depth_format != wgpu::TextureFormat::Undefined;
+      }
+
+      void init_pipeline(wgpu::Device device)
+      {
+
+        if (!_inited)
+        {
+          _bindings->init_layout(device);
+          _bindings->init(device);
+          if (texture_format_defined())
+          {
+            std::cout << "init render pipe" << std::endl;
+            std::cout << _color_format << " " << _depth_format << std::endl;
+            _shader->init(
+                device, _bindings->get_layout(),
+                _color_format, _depth_format);
+          }
+          else
+          {
+            std::cout << "init compute pipe" << std::endl;
+            _shader->init(device, _bindings->get_layout());
+          }
+          _inited = true;
+        }
+      }
+
+      void set_texture_format(wgpu::TextureFormat color, wgpu::TextureFormat depth)
+      {
+        _color_format = color;
+        _depth_format = depth;
+      }
+
+      bool _inited = false;
+      wgpu::TextureFormat _color_format = wgpu::TextureFormat::Undefined;
+      wgpu::TextureFormat _depth_format = wgpu::TextureFormat::Undefined;
       bindings::group::ptr _bindings;
       shaders::shader::ptr _shader;
     };
@@ -48,31 +99,54 @@ namespace lewitt
 
       static renderable::ptr create(
           const buffers::buffer::ptr &vertex_buffer,
-          const bindings::group::ptr &bindings,
           const shaders::shader::ptr &shader)
       {
+
         ptr obj = std::make_shared<renderable>();
-        obj->set_bindings(bindings);
         obj->set_vertex_buffer(vertex_buffer);
         obj->set_shader(shader);
         return obj;
       }
 
-      renderable()
+      static renderable::ptr create(
+          const buffers::buffer::ptr &index_buffer,
+          const buffers::buffer::ptr &vertex_buffer,
+          const shaders::shader::ptr &shader)
       {
+        assert(index_buffer->get_buffer().getUsage() == flags::index::read);
+        assert(vertex_buffer->get_buffer().getUsage() == flags::vertex::read);
+
+        ptr obj = std::make_shared<renderable>();
+        obj->set_vertex_buffer(vertex_buffer);
+        obj->set_index_buffer(index_buffer);
+        obj->set_shader(shader);
+        return obj;
       }
+
+      renderable() : doable()
+      {
+        std::cout << "making renderable" << std::endl;
+      }
+
       ~renderable() {}
 
-      void draw(wgpu::RenderPassEncoder renderpass)
+      void draw(wgpu::RenderPassEncoder renderpass, wgpu::Device device)
       {
-
+        init_pipeline(device);
         renderpass.setPipeline(_shader->render_pipe_line());
         /// renderPass.setVertexBuffer(0, m_vertexBuffer, 0, m_vertexCount * sizeof(VertexAttributes));
-        vertex_buffer->set_current(renderpass);
+        renderpass.setVertexBuffer(0, vertex_buffer->get_buffer(), 0, vertex_buffer->get_buffer().getSize());
+        for(int i = 0; i < _attribute_buffers.size(); i++){
+            renderpass.setVertexBuffer(i+1, _attribute_buffers[i]->get_buffer(), 0, _attribute_buffers[i]->get_buffer().getSize());
+        }
+
         renderpass.setBindGroup(0, _bindings->get_group(), 0, nullptr);
+
         if (index_buffer)
         {
-          renderpass.setIndexBuffer(index_buffer->get_buffer(), wgpu::IndexFormat::Uint32, 0, index_buffer->count());
+          std::cout << "setting index buffer" << std::endl;
+          renderpass.setIndexBuffer(index_buffer->get_buffer(), wgpu::IndexFormat::Uint32, 0, index_buffer->size());
+          std::cout << "drawing index buffer" << std::endl;
           renderpass.drawIndexed(index_buffer->count(), 1, 0, 0, 0);
         }
         else
@@ -80,15 +154,23 @@ namespace lewitt
           renderpass.draw(vertex_buffer->count(), 1, 0, 0);
         }
       }
-
+      
       void set_vertex_buffer(const buffers::buffer::ptr &buffer)
       {
         vertex_buffer = buffer;
       }
-      void set_index_buffer(const buffers::buffer::ptr &buffer){
+      
+      void set_index_buffer(const buffers::buffer::ptr &buffer)
+      {
         index_buffer = buffer;
       }
 
+      void append_attribute_buffer(const buffers::buffer::ptr &buffer)
+      {
+        _attribute_buffers.push_back(buffer);
+      }
+
+      std::vector<buffers::buffer::ptr> _attribute_buffers;
       buffers::buffer::ptr vertex_buffer = nullptr;
       buffers::buffer::ptr index_buffer = nullptr;
     };
@@ -113,13 +195,14 @@ namespace lewitt
         return obj;
       }
 
-      computable()
+      computable() : doable()
       {
       }
       ~computable() {}
 
-      void compute(wgpu::ComputePassEncoder computePass)
+      void compute(wgpu::ComputePassEncoder computePass, wgpu::Device device)
       {
+        init_pipeline(device);
         std::cout << "setting pipeline: " << this->_shader->compute_pipe_line() << std::endl;
         computePass.setPipeline(this->_shader->compute_pipe_line());
         std::cout << " invocations: " << _invocation_count_x << "x" << _invocation_count_y << std::endl;
@@ -155,10 +238,9 @@ namespace lewitt
 
       DEFINE_CREATE_FUNC(ray_compute)
 
-      ray_compute(wgpu::Device device)
+      ray_compute(wgpu::Device device) : computable()
       {
         this->_shader = ray_shader::create(device);
-        _bindings = bindings::group::create();
       }
 
       ~ray_compute() {}
@@ -234,7 +316,7 @@ namespace lewitt
         uniforms->set_visibility(wgpu::ShaderStage::Compute);
 
         std::vector<ray> rays = init_rays(width, height);
-        bindings::buffer::ptr ray_buffer_bindings = bindings::buffer::create  ();
+        bindings::buffer::ptr ray_buffer_bindings = bindings::buffer::create();
         ray_buffer_bindings->get_buffer()->set_label("Rays");
         ray_buffer_bindings->get_buffer()->set_usage(flags::storage::read);
         ray_buffer_bindings->set_visibility(wgpu::ShaderStage::Compute);
@@ -274,15 +356,6 @@ namespace lewitt
         std::cout << "  -Output texture..." << std::endl;
         _bindings->assign(1, output_texture_binding);
         init_buffers(device, width, height);
-      }
-
-      void init_shader_pipeline(wgpu::Device &device)
-      {
-        std::cout << "  -inititialzing layout..." << std::endl;
-        _bindings->init_layout(device);
-        std::cout << "  -inititialzing bind group..." << std::endl;
-        _bindings->init(device);
-        _shader->init(device, _bindings->get_layout());
       }
 
       struct ray_shader : public shaders::shader

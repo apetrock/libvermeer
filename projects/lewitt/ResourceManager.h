@@ -128,9 +128,9 @@ public:
 				vertex_data[id1].normal += N;
 				vertex_data[id2].normal += N;
 
-				face_ids[offset + i + 0] = 3 * id0;
-				face_ids[offset + i + 1] = 3 * id1;
-				face_ids[offset + i + 2] = 3 * id2;
+				//face_ids[offset + i + 0] = 3 * id0;
+				//face_ids[offset + i + 1] = 3 * id1;
+				//face_ids[offset + i + 2] = 3 * id2;
 			}
 		}
 
