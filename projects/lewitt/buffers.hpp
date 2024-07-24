@@ -10,7 +10,7 @@
 // I think we can seperate all of those out.
 namespace lewitt
 {
-
+  GLM_TYPEDEFS;
   namespace buffers
   {
 
@@ -76,7 +76,34 @@ namespace lewitt
         bufferDesc.mappedAtCreation = false;
 
         _vertexBuffer = device.createBuffer(bufferDesc);
+
         return _vertexBuffer != nullptr;
+      }
+
+      template <typename... Types>
+      void set_vertex_layout(wgpu::VertexStepMode step_mode = wgpu::VertexStepMode::Vertex)
+      {
+        auto [vertex_format, vertex_layout] = vertex_formats::create_vertex_layout<Types...>(step_mode);
+        _vertex_format = std::move(vertex_format);
+        _vertex_layout = std::move(vertex_layout);
+      }
+
+      wgpu::VertexBufferLayout get_vertex_layout()
+      {
+        return _vertex_layout;
+      }
+
+      vertex_formats::Format get_vertex_format()
+      {
+        return _vertex_format;
+      }
+
+      void set_format_offset(uint32_t offset)
+      {
+        for(int i = 0; i < _vertex_format.size(); i++)
+        {
+          _vertex_format[i].shaderLocation = i + offset;
+        }
       }
 
       template <typename FORMAT>
@@ -115,6 +142,11 @@ namespace lewitt
       wgpu::Buffer _vertexBuffer = nullptr;
       size_t _sizeof_format = 0;
       size_t _count = 0;
+
+      // optional Format/layout ptrs.
+      vertex_formats::Format _vertex_format;
+      wgpu::VertexBufferLayout _vertex_layout;
+
       // material::ptr _material;
     };
 
@@ -133,9 +165,10 @@ namespace lewitt
     {
       auto [indices, attributes] =
           ResourceManager::load_geometry_from_obj<lewitt::vertex_formats::PN_t>(RESOURCE_DIR "/bunny.obj");
+
       buffer::ptr attr_buffer = buffer::create<lewitt::vertex_formats::PN_t>(attributes, device, flags::vertex::read);
       buffer::ptr index_buffer = buffer::create<uint32_t>(indices, device, flags::index::read);
-
+      attr_buffer->set_vertex_layout<vec3, vec3>(wgpu::VertexStepMode::Vertex);
       return {index_buffer, attr_buffer};
     }
 

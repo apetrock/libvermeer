@@ -139,12 +139,12 @@ namespace lewitt
     }
 
     template <typename... Types>
-    inline std::vector<wgpu::VertexAttribute> attribute()
+    inline std::vector<wgpu::VertexAttribute> create_format()
     {
 
       size_t N = sizeof...(Types);
       std::vector<wgpu::VertexAttribute> vertexAttribs(N);
-
+      std::cout << N << std::endl;
       std::vector<size_t> sizes = {sizeof(Types)...};
       std::vector<wgpu::VertexFormat> formats = {type_alias<Types>()...};
       std::size_t offset = 0;
@@ -155,26 +155,43 @@ namespace lewitt
         vertexAttribs[i].format = formats[i];
         vertexAttribs[i].offset = offset;
         offset += sizes[i];
+        std::cout << "shaderLocation: " << i << std::endl;
+        std::cout << "format: " << formats[i] << std::endl;
+        std::cout << "offset: " << offset << std::endl;
+
       }
       return vertexAttribs;
     }
 
     template <typename... Types>
-    std::tuple<std::vector<wgpu::VertexAttribute>, wgpu::VertexBufferLayout>
-    create_vertex_layout(wgpu::VertexStepMode step_mode = wgpu::VertexStepMode::Vertex)
+    size_t calc_total_size()
     {
       std::vector<size_t> sizes = {sizeof(Types)...};
-      size_t totalSize = std::reduce(sizes.begin(), sizes.end(), 0);
-      std::vector<wgpu::VertexAttribute> format = attribute<Types...>();
-      
-      wgpu::VertexBufferLayout vertexBufferLayout;
-      vertexBufferLayout.attributeCount = (uint32_t)format.size();
-      vertexBufferLayout.attributes = format.data();
-      vertexBufferLayout.arrayStride = totalSize;
-      vertexBufferLayout.stepMode = step_mode;
+      return std::reduce(sizes.begin(), sizes.end(), 0);
+    }
 
-      return {format, vertexBufferLayout};
+    using Format = std::vector<wgpu::VertexAttribute>;
+    template <typename... Types>
+    std::tuple<Format, wgpu::VertexBufferLayout>
+    create_vertex_layout(wgpu::VertexStepMode step_mode = wgpu::VertexStepMode::Vertex)
+    {
+      size_t totalSize = calc_total_size<Types...>();
+      Format format = create_format<Types...>();
+
+      wgpu::VertexBufferLayout layout;
+      layout.attributeCount = (uint32_t)format.size();
+      layout.attributes = format.data();
+      layout.arrayStride = totalSize;
+      layout.stepMode = step_mode;
+      return {std::move(format), std::move(layout)};
+    }
+
+    inline std::tuple<Format, wgpu::VertexBufferLayout>
+    create_PN_vertex_layout(wgpu::VertexStepMode step_mode = wgpu::VertexStepMode::Vertex)
+    {
+      return create_vertex_layout<vec3, vec3>(step_mode);
     }
 
   }
+
 }

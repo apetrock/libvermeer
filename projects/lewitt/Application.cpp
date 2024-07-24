@@ -331,7 +331,7 @@ bool Application::initWindowAndDevice()
 	RequiredLimits requiredLimits = Default;
 	requiredLimits.limits.maxVertexAttributes = 12;
 	//                                          ^ This was a 4
-	requiredLimits.limits.maxVertexBuffers = 1;
+	requiredLimits.limits.maxVertexBuffers = 10;
 	requiredLimits.limits.maxBufferSize = 1500000 * sizeof(VertexAttributes);
 	// requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes);
 	requiredLimits.limits.maxVertexBufferArrayStride = 128;
@@ -586,20 +586,95 @@ void Application::updateLightingUniforms()
 	//_lighting_uniform_binding->update(m_lightingUniforms, m_queue);
 }
 
-bool Application::initBunny() {return true;}
+bool Application::initBunny()
+{
+
+	auto [index_buffer, attr_buffer] = lewitt::buffers::load_bunny(m_device);
+	std::cout << "creating bunny doable" << std::endl;
+	_bunny = lewitt::doables::renderable::create(
+			index_buffer, attr_buffer,
+			lewitt::shaders::PN::create(m_device));
+
+	_bunny->set_texture_format(m_swapChainFormat, m_depthTextureFormat);
+	return true;
+}
+
+#include <random>
+GLM_TYPEDEFS;
+std::vector<vec3> gen_rand_offsets(int N){
+	//use std::randomg device w/mersein twister
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<float> dis(-1.0, 1.0);
+	std::vector<vec3> offsets;
+	for(int i = 0; i < N; i++){
+		offsets.push_back(vec3(dis(gen), dis(gen), dis(gen)));
+	}
+	return offsets;
+}
+
+std::vector<vec3> gen_rand_colors(int N){
+	//use std::randomg device w/mersein twister
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<float> dis(0.0, 1.0);
+	std::vector<vec3> offsets;
+	for(int i = 0; i < N; i++){
+		offsets.push_back(vec3(dis(gen), dis(gen), dis(gen)));
+	}
+	return offsets;
+}
+
+//generate random unit quaternions as above, but save them as
+
+std::vector<quat> gen_rand_quats(int N){
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<float> dis(-1.0, 1.0);
+	std::vector<quat> quats;
+	for(int i = 0; i < N; i++){
+		quat q(dis(gen), dis(gen), dis(gen), dis(gen));
+		q = glm::normalize(q);
+		quats.push_back(q);
+	}
+	return quats;
+}
+
 bool Application::initBunnyInstanced()
 {
 
 	auto [index_buffer, attr_buffer] = lewitt::buffers::load_bunny(m_device);
+	std::cout << "creating bunny doable" << std::endl;
 	_bunny = lewitt::doables::renderable::create(
 			index_buffer, attr_buffer,
-			lewitt::shaders::shader_t<vec3, vec3, vec3>::create(RESOURCE_DIR "/pnc.wgsl",m_device));
+			lewitt::shaders::shader_t::create(RESOURCE_DIR "/pnc.wgsl", m_device));
+	
+	attr_buffer->set_vertex_layout<vec3, vec3>(wgpu::VertexStepMode::Vertex);
 
-	std::vector<vec3> color = {vec3(0.1, 0.3, 0.8)};
-	lewitt::buffers::buffer::ptr color_attr_buffer =
-			lewitt::buffers::buffer::create<vec3>(color, m_device,
+	lewitt::buffers::buffer::ptr offset_attr_buffer =
+			lewitt::buffers::buffer::create<vec3>(gen_rand_offsets(10000), m_device,
 																						lewitt::flags::vertex::read);
+	std::cout << "offset count" << offset_attr_buffer->count() << std::endl;
+	offset_attr_buffer->set_vertex_layout<vec3>(wgpu::VertexStepMode::Instance);
+	_bunny->append_attribute_buffer(offset_attr_buffer);
+	
+	lewitt::buffers::buffer::ptr color_attr_buffer =
+			lewitt::buffers::buffer::create<vec3>(gen_rand_colors(10000), m_device,
+																						lewitt::flags::vertex::read);
+	color_attr_buffer->set_vertex_layout<vec3>(wgpu::VertexStepMode::Instance);
 	_bunny->append_attribute_buffer(color_attr_buffer);
+
+	
+	lewitt::buffers::buffer::ptr quat_attr_buffer =
+			lewitt::buffers::buffer::create<quat>(gen_rand_quats(10000), m_device,
+																						lewitt::flags::vertex::read);
+	quat_attr_buffer->set_vertex_layout<quat>(wgpu::VertexStepMode::Instance);
+	_bunny->append_attribute_buffer(quat_attr_buffer);
+	
+
+	_bunny->set_instance_count(offset_attr_buffer->count());
+	
+	
 	_bunny->set_texture_format(m_swapChainFormat, m_depthTextureFormat);
 	return true;
 }
@@ -613,7 +688,7 @@ bool Application::initRenderables()
 
 	_cylinder->set_texture_format(m_swapChainFormat, m_depthTextureFormat);
 
-	bool bunny_inited = initBunny() && initBunnyInstanced();
+	bool bunny_inited = initBunnyInstanced();
 	return true;
 }
 

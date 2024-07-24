@@ -130,14 +130,32 @@ namespace lewitt
 
       ~renderable() {}
 
+      void prep_shader_vertex_format()
+      {
+        wgpu::VertexBufferLayout base_layout = vertex_buffer->get_vertex_layout();
+
+        _shader->add_layout(vertex_buffer->get_vertex_layout());
+        int base_offset = vertex_buffer->get_vertex_format().size();
+        std::cout << "stepmode : " << vertex_buffer->get_vertex_layout().stepMode << std::endl;
+        for (auto buf : _attribute_buffers)
+        {
+          buf->set_format_offset(base_offset);
+          std::cout << "stepmode : " << buf->get_vertex_layout().stepMode << std::endl;
+          _shader->add_layout(buf->get_vertex_layout());
+          base_offset += buf->get_vertex_format().size();
+        }
+      }
+
       void draw(wgpu::RenderPassEncoder renderpass, wgpu::Device device)
       {
+        prep_shader_vertex_format();
         init_pipeline(device);
         renderpass.setPipeline(_shader->render_pipe_line());
         /// renderPass.setVertexBuffer(0, m_vertexBuffer, 0, m_vertexCount * sizeof(VertexAttributes));
         renderpass.setVertexBuffer(0, vertex_buffer->get_buffer(), 0, vertex_buffer->get_buffer().getSize());
-        for(int i = 0; i < _attribute_buffers.size(); i++){
-            renderpass.setVertexBuffer(i+1, _attribute_buffers[i]->get_buffer(), 0, _attribute_buffers[i]->get_buffer().getSize());
+        for (int i = 0; i < _attribute_buffers.size(); i++)
+        {
+          renderpass.setVertexBuffer(i + 1, _attribute_buffers[i]->get_buffer(), 0, _attribute_buffers[i]->get_buffer().getSize());
         }
 
         renderpass.setBindGroup(0, _bindings->get_group(), 0, nullptr);
@@ -147,19 +165,21 @@ namespace lewitt
           std::cout << "setting index buffer" << std::endl;
           renderpass.setIndexBuffer(index_buffer->get_buffer(), wgpu::IndexFormat::Uint32, 0, index_buffer->size());
           std::cout << "drawing index buffer" << std::endl;
-          renderpass.drawIndexed(index_buffer->count(), 1, 0, 0, 0);
+          renderpass.drawIndexed(index_buffer->count(), _instance_count, 0, 0, 0);
         }
         else
         {
           renderpass.draw(vertex_buffer->count(), 1, 0, 0);
         }
       }
-      
+
+      void set_instance_count(uint32_t N){_instance_count = N;}
+
       void set_vertex_buffer(const buffers::buffer::ptr &buffer)
       {
         vertex_buffer = buffer;
       }
-      
+
       void set_index_buffer(const buffers::buffer::ptr &buffer)
       {
         index_buffer = buffer;
@@ -173,6 +193,7 @@ namespace lewitt
       std::vector<buffers::buffer::ptr> _attribute_buffers;
       buffers::buffer::ptr vertex_buffer = nullptr;
       buffers::buffer::ptr index_buffer = nullptr;
+      uint32_t _instance_count = 1;
     };
 
     class computable : public doable

@@ -33,14 +33,26 @@ namespace lewitt
       virtual bool init(wgpu::Device device,
                         wgpu::BindGroupLayout bind_group_layout,
                         wgpu::TextureFormat color_format,
-                        wgpu::TextureFormat depth_format)
+                        wgpu::TextureFormat depth_format,
+                        std::string vertex_entry = "vs_main",
+                        std::string fragment_entry = "fs_main")
       {
         std::cout << "base render init" << std::endl;
 
         return false;
       }
+
+      virtual void add_layout(
+          wgpu::VertexBufferLayout layout
+)
+      {
+        _layouts.push_back(layout);
+      }
       virtual wgpu::RenderPipeline render_pipe_line() { return nullptr; }
       virtual wgpu::ComputePipeline compute_pipe_line() { return nullptr; }
+
+      std::vector<wgpu::VertexBufferLayout> _layouts;
+      std::vector<vertex_formats::Format> _formats;
     };
 
     inline wgpu::BlendState basic_blend_state()
@@ -79,10 +91,10 @@ namespace lewitt
 
     inline wgpu::VertexState basic_vertex_state(
         const char *entry_point,
-        wgpu::ShaderModule shader_module)
+        wgpu::ShaderModule shader_module, int buffer_count = 1)
     {
       wgpu::VertexState state;
-      state.bufferCount = 1;
+      state.bufferCount = buffer_count;
       state.module = shader_module;
       state.entryPoint = entry_point;
       state.constantCount = 0;
@@ -133,14 +145,23 @@ namespace lewitt
       init(wgpu::Device device,
            wgpu::BindGroupLayout bind_group_layout,
            wgpu::TextureFormat color_format,
-           wgpu::TextureFormat depth_format)
+           wgpu::TextureFormat depth_format,
+           std::string vertex_entry = "vs_main",
+           std::string fragment_entry = "fs_main")
       {
 
         std::cout << "Creating render pipeline..." << std::endl;
         wgpu::RenderPipelineDescriptor pipelineDesc;
-        std::vector<wgpu::VertexAttribute> vertex_format = vertex_formats::PN_attrib();
-        wgpu::VertexBufferLayout vertexBufferLayout = vertex_formats::create_vertex_layout<vertex_formats::PN_t>(vertex_format);
-
+        std::vector<wgpu::VertexAttribute> vertex_format_t = vertex_formats::PN_attrib();
+        wgpu::VertexBufferLayout vertexBufferLayout_t = vertex_formats::create_vertex_layout<vertex_formats::PN_t>(vertex_format_t);
+        auto [vertex_format, vertexBufferLayout] = vertex_formats::create_PN_vertex_layout(wgpu::VertexStepMode::Vertex);
+        std::cout << vertex_format.size() << " " << vertex_format_t.size() << std::endl;
+        for (int i = 0; i < vertex_format.size(); i++)
+        {
+          std::cout << vertex_format[i].shaderLocation << " " << vertex_format_t[i].shaderLocation << std::endl;
+          std::cout << vertex_format[i].format << " " << vertex_format_t[i].format << std::endl;
+          std::cout << vertex_format[i].offset << " " << vertex_format_t[i].offset << std::endl;
+        }
         pipelineDesc.vertex = basic_vertex_state("vs_main", this->shaderModule);
         pipelineDesc.vertex.buffers = &vertexBufferLayout;
 
@@ -200,7 +221,9 @@ namespace lewitt
       init(wgpu::Device device,
            wgpu::BindGroupLayout bind_group_layout,
            wgpu::TextureFormat color_format,
-           wgpu::TextureFormat depth_format)
+           wgpu::TextureFormat depth_format,
+           std::string vertex_entry = "vs_main",
+           std::string fragment_entry = "fs_main")
       {
 
         std::cout << "Creating render pipeline..." << std::endl;
@@ -249,7 +272,6 @@ namespace lewitt
       wgpu::RenderPipeline m_pipeline = nullptr;
     };
 
-    template <typename... Types>
     class shader_t : public shader
     {
     public:
@@ -264,7 +286,7 @@ namespace lewitt
         m_pipeline.release();
       }
 
-      bool
+      virtual bool
       init(wgpu::Device device,
            wgpu::BindGroupLayout bind_group_layout,
            wgpu::TextureFormat color_format,
@@ -275,16 +297,10 @@ namespace lewitt
 
         std::cout << "Creating render pipeline..." << std::endl;
         wgpu::RenderPipelineDescriptor pipelineDesc;
-        
-        auto [vertex_format, vertexBufferLayout] = vertex_formats::create_vertex_layout<Types...>();
-        for (int i = 0; i < vertex_format.size(); i++)
-        {
-          std::cout << "format: " << i << " "<< vertex_format[i].shaderLocation << " " << vertex_format[i].format << " " << vertex_format[i].offset << std::endl;
-        }
 
-        pipelineDesc.vertex = basic_vertex_state(vertex_entry.c_str(), this->shaderModule);
-        pipelineDesc.vertex.buffers = &vertexBufferLayout;
-
+        pipelineDesc.vertex = basic_vertex_state(vertex_entry.c_str(), this->shaderModule, _layouts.size());
+        pipelineDesc.vertex.buffers = _layouts.data();
+        std::cout << "layouts: " << _layouts.size() << std::endl;
         pipelineDesc.primitive = basic_primitive_state(wgpu::PrimitiveTopology::TriangleList,
                                                        wgpu::IndexFormat::Undefined);
 

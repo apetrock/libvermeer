@@ -1,6 +1,10 @@
 struct VertexInput {
 	@location(0) position: vec3f,
 	@location(1) normal: vec3f,
+	@location(2) offset: vec3f,
+	@location(3) color: vec3f,
+	@location(4) rotation: vec4f,
+	
 };
 
 struct VertexOutput {
@@ -37,13 +41,28 @@ struct LightingUniforms {
 @group(0) @binding(0) var<uniform> u_object: uniforms;
 @group(0) @binding(1) var<uniform> u_lighting: LightingUniforms;
 
+fn quat_rotate(v: vec3f, q: vec4f) -> vec3f
+{
+    // Extract the vector part of the quaternion
+    let u = vec3f(q.x, q.y, q.z);
+
+    // Extract the scalar part of the quaternion
+    let s = q.w;
+
+    // Do the math
+    return 2.0f * dot(u, v) * u
+          + (s*s - dot(u, u)) * v
+          + 2.0f * s * cross(u, v);
+}
+
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
 	var out: VertexOutput;
-	let worldPosition = u_object.modelMatrix * vec4<f32>(in.position, 1.0);
+	let worldPosition = u_object.modelMatrix * vec4<f32>(quat_rotate(in.position, in.rotation) + in.offset, 1.0);
+	
 	out.position = u_object.projectionMatrix * u_object.viewMatrix * worldPosition;
-	out.normal = (u_object.modelMatrix * vec4f(in.normal, 0.0)).xyz;
-	out.color = vec3f(1.0, 0.0, 0.0);
+	out.normal = (u_object.modelMatrix * vec4f(quat_rotate(in.normal, in.rotation), 0.0)).xyz;
+	out.color = in.color;
 	out.viewDirection = u_object.cameraWorldPosition - worldPosition.xyz;
 	return out;
 }
