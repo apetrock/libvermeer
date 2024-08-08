@@ -655,8 +655,6 @@ void Application::onGui(RenderPassEncoder renderPass)
 
 void Application::onCompute()
 {
-	std::cout << "Computing..." << std::endl;
-
 	// Update uniforms
 	m_queue.writeBuffer(m_uniformBuffer, 0, &m_uniforms, sizeof(Uniforms));
 

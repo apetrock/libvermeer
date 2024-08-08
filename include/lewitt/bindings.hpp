@@ -5,7 +5,7 @@
 #include <webgpu/webgpu.hpp>
 
 #include "common.h"
-#include "ResourceManager.h"
+//#include "ResourceManager.h"
 #include "uniforms.hpp"
 #include "buffers.hpp"
 // there will have to be scene uniforms and buffer uniforms,

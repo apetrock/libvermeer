@@ -2,7 +2,7 @@
 #include <stack>
 #include "common.h"
 #include <webgpu/webgpu.hpp>
-#include "ResourceManager.h"
+#include "resources.hpp"
 #include "bindings.hpp"
 #include "vertex_formats.hpp"
 #include "buffer_flags.h"
@@ -19,7 +19,7 @@ namespace lewitt
     {
       // currently only have one format, this will have to improve
       std::vector<FORMAT> vertexData;
-      bool success = ResourceManager::loadGeometryFromObj(filename, vertexData);
+      bool success = resources::loadGeometryFromObj(filename, vertexData);
       if (!success)
       {
         std::cerr << "Could not load geometry!" << std::endl;
@@ -37,6 +37,7 @@ namespace lewitt
       {
         return std::make_shared<buffer>();
       }
+      
       template <typename FORMAT>
       static ptr create(
           const std::vector<FORMAT> &vertexData,
@@ -69,9 +70,7 @@ namespace lewitt
           bufferDesc.label = _label.c_str();
 
         bufferDesc.size = count * _sizeof_format;
-        std::cout << "size before: " << bufferDesc.size << std::endl;
         bufferDesc.size = (bufferDesc.size + 3) & ~0x3; // must be multiples of 4
-        std::cout << "size after: " << bufferDesc.size << std::endl;
         bufferDesc.usage = _usage;
         bufferDesc.mappedAtCreation = false;
 
@@ -150,6 +149,7 @@ namespace lewitt
       // material::ptr _material;
     };
 
+    //move this to draw_primitives... or some other name
     inline buffer::ptr load_cylinder(wgpu::Device &device)
     {
       wgpu::Queue queue = device.getQueue();
@@ -164,7 +164,7 @@ namespace lewitt
     inline std::array<buffer::ptr, 2> load_bunny(wgpu::Device &device)
     {
       auto [indices, attributes] =
-          ResourceManager::load_geometry_from_obj<lewitt::vertex_formats::PN_t>(RESOURCE_DIR "/bunny.obj");
+          resources::load_geometry_from_obj<lewitt::vertex_formats::PN_t>(RESOURCE_DIR "/bunny.obj");
 
       buffer::ptr attr_buffer = buffer::create<lewitt::vertex_formats::PN_t>(attributes, device, flags::vertex::read);
       buffer::ptr index_buffer = buffer::create<uint32_t>(indices, device, flags::index::read);

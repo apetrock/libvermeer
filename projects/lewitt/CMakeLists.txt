@@ -10,8 +10,6 @@ set(SOURCES
   main.cpp
 	Application.h
 	Application.cpp
-	ResourceManager.h
-	ResourceManager.cpp
 	implementations.cpp
 )
 

@@ -1,9 +1,7 @@
 #pragma once
 #include <stack>
 #include <map>
-#include "common.h"
-#include <webgpu/webgpu.hpp>
-#include "ResourceManager.h"
+
 // there will have to be scene uniforms and buffer uniforms,
 // I think we can seperate all of those out.
 namespace lewitt
@@ -11,13 +9,12 @@ namespace lewitt
   namespace uniforms
   {
     GLM_TYPEDEFS;
-    using vec4x2 = std::array<vec4, 2>;
-
-    //this unforturnately doesn't offer the interface that I want 
-    template <typename T, const char * NAME>
-    struct member{
+    // this unforturnately doesn't offer the interface that I want
+    template <typename T, const char *NAME>
+    struct member
+    {
       using type = T;
-      static constexpr char * name = NAME;
+      static constexpr char *name = NAME;
     };
 
     class structish
@@ -35,7 +32,7 @@ namespace lewitt
 
       structish(const structish &other)
       {
-        
+
         if (__data)
           delete[] __data;
 
@@ -94,7 +91,6 @@ namespace lewitt
         std::memset(__data, 0, offset);
       }
 
-
       template <typename... NamedTypes>
       void init_types()
       {
@@ -144,7 +140,7 @@ namespace lewitt
       template <typename T>
       T get(const std::string &name) const
       {
-        
+
         throw_if_invalid<T>(name);
         auto it = __offsets.find(name);
         T val;
@@ -157,7 +153,6 @@ namespace lewitt
       size_t offset(const std::string &mem) { return __offsets[mem]; }
 
     private:
-    
       std::map<std::string, std::size_t> __size_map;
       std::map<std::string, std::size_t> __offsets;
       char *__data = nullptr;

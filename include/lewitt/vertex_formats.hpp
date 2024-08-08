@@ -3,7 +3,7 @@
 #include <algorithm>
 #include "common.h"
 #include <webgpu/webgpu.hpp>
-#include "ResourceManager.h"
+#include "resources.hpp"
 #include "bindings.hpp"
 // there will have to be scene uniforms and buffer uniforms,
 // I think we can seperate all of those out.
@@ -25,8 +25,8 @@ namespace lewitt
       vec4 v;
     };
 
-    using VertexAttributes = ResourceManager::VertexAttributes;
-    using PNCUVTB_t = ResourceManager::VertexAttributes;
+    using VertexAttributes = resources::VertexAttributes;
+    using PNCUVTB_t = resources::VertexAttributes;
     inline std::vector<wgpu::VertexAttribute> PNCUVTB_attrib()
     {
       // Vertex fetch
@@ -51,7 +51,7 @@ namespace lewitt
       return vertexAttribs;
     }
 
-    using PN_t = ResourceManager::position_normal_attributes;
+    using PN_t = resources::position_normal_attributes;
     inline std::vector<wgpu::VertexAttribute> PN_attrib()
     {
       // Vertex fetch
@@ -112,17 +112,31 @@ namespace lewitt
     // just the floats for now
     template <typename T>
     inline wgpu::VertexFormat type_alias()
-    {
+    { 
+      
       if constexpr (std::is_same_v<T, float>)
         return wgpu::VertexFormat::Float32;
       else if constexpr (std::is_same_v<T, vec2>)
         return wgpu::VertexFormat::Float32x2;
-      else if constexpr (std::is_same_v<T, vec3>)
+      else if constexpr (std::is_same_v<T, vec3>){
         return wgpu::VertexFormat::Float32x3;
+        }
       else if constexpr (std::is_same_v<T, vec4>)
         return wgpu::VertexFormat::Float32x4;
       else if constexpr (std::is_same_v<T, quat>)
         return wgpu::VertexFormat::Float32x4;
+      else if constexpr (std::is_same_v<T, uint8_t>)
+      {
+        return wgpu::VertexFormat::Uint32;
+      }
+      else if constexpr (std::is_same_v<T, uint16_t>)
+      {
+        return wgpu::VertexFormat::Uint32;
+      }
+      else if constexpr (std::is_same_v<T, uint32_t>)
+      {
+        return wgpu::VertexFormat::Uint32;
+      }
     }
 
     template <typename T>
@@ -155,10 +169,6 @@ namespace lewitt
         vertexAttribs[i].format = formats[i];
         vertexAttribs[i].offset = offset;
         offset += sizes[i];
-        std::cout << "shaderLocation: " << i << std::endl;
-        std::cout << "format: " << formats[i] << std::endl;
-        std::cout << "offset: " << offset << std::endl;
-
       }
       return vertexAttribs;
     }

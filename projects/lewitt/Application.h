@@ -31,14 +31,15 @@
 #include <glm/glm.hpp>
 
 #include <array>
-#include "common.h"
+#include "lewitt/common.h"
 
-#include "uniforms.hpp"
-#include "bindings.hpp"
-#include "shaders.hpp"
-#include "buffers.hpp"
-#include "vertex_formats.hpp"
-#include "doables.hpp"
+#include "lewitt/uniforms.hpp"
+#include "lewitt/bindings.hpp"
+#include "lewitt/shaders.hpp"
+
+#include "lewitt/buffers.hpp"
+#include "lewitt/vertex_formats.hpp"
+#include "lewitt/doables.hpp"
 // Forward declare
 struct GLFWwindow;
 
@@ -84,6 +85,10 @@ private:
 
 	bool initLightingUniforms();
 	void updateLightingUniforms();
+
+	bool initSphere();
+	bool initCylinder();
+	bool initCapsule();
 
 	bool initBunny();
 	bool initBunnyInstanced();
@@ -154,15 +159,17 @@ private:
 	wgpu::TextureFormat m_depthTextureFormat = wgpu::TextureFormat::Depth24Plus;
 	wgpu::Texture m_depthTexture = nullptr;
 	wgpu::TextureView m_depthTextureView = nullptr;
-
-	lewitt::doables::renderable::ptr _cylinder;
-	lewitt::doables::renderable::ptr _bunny;
-	lewitt::doables::renderable::ptr _bunny_instanced;
+	std::vector<lewitt::doables::renderable::ptr> _renderables;
+	std::vector<lewitt::doables::computable::ptr> _computables;
+	lewitt::doables::renderable::ptr _cylinder_normal_texture;
+	//lewitt::doables::renderable::ptr _bunny;
+	//lewitt::doables::renderable::ptr _bunny_instanced;
+	//lewitt::doables::renderable::ptr _sphere;
+	//lewitt::doables::renderable::ptr _cylinder;
+	//lewitt::doables::renderable::ptr _capsule;
 	
 	int _u_id = -1, _u_lighting_id = -1;
 
-
-	lewitt::doables::ray_compute::ptr _ray_compute;
 	CameraState m_cameraState;
 	DragState m_drag;
 };

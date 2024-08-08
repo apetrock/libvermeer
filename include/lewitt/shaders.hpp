@@ -2,7 +2,7 @@
 #include <stack>
 #include "common.h"
 #include <webgpu/webgpu.hpp>
-#include "ResourceManager.h"
+#include "resources.hpp"
 #include "bindings.hpp"
 #include "vertex_formats.hpp"
 // there will have to be scene uniforms and buffer uniforms,
@@ -134,7 +134,7 @@ namespace lewitt
       PN(wgpu::Device &device)
       {
         std::cout << "Creating shader module..." << std::endl;
-        this->shaderModule = ResourceManager::loadShaderModule(RESOURCE_DIR "/pnc.wgsl", device);
+        this->shaderModule = resources::load_shader_module(RESOURCE_DIR "/pnc.wgsl", device);
       }
       ~PN()
       {
@@ -210,7 +210,7 @@ namespace lewitt
       PNCUVTB(wgpu::Device &device)
       {
         std::cout << "Creating shader module..." << std::endl;
-        this->shaderModule = ResourceManager::loadShaderModule(RESOURCE_DIR "/pncuvtb.wgsl", device);
+        this->shaderModule = resources::load_shader_module(RESOURCE_DIR "/pncuvtb.wgsl", device);
       }
       ~PNCUVTB()
       {
@@ -279,7 +279,7 @@ namespace lewitt
       shader_t(std::string path, wgpu::Device &device)
       {
         std::cout << "Creating shader module..." << std::endl;
-        this->shaderModule = ResourceManager::loadShaderModule(path, device);
+        this->shaderModule = resources::load_shader_module(path, device);
       }
       ~shader_t()
       {
