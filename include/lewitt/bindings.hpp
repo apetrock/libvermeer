@@ -434,8 +434,10 @@ namespace lewitt
       group() {}
       ~group()
       {
-        _layout.release();
-        _group.release();
+        if(_layout)
+          _layout.release();
+        if(_group)
+          _group.release();
       }
 
       template <typename T>

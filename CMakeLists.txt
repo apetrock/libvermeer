@@ -7,18 +7,13 @@ project(
 
 # Set C++ standard to C++20
 set(
-  CMAKE_CXX_STANDARD 17
+  CMAKE_CXX_STANDARD 20
   CMAKE_CXX_STANDARD_REQUIRED ON
   CXX_EXTENSIONS OFF
   COMPILE_WARNING_AS_ERROR ON
 )
-if (CMAKE_BUILD_TYPE MATCHES "ASAN")
-  # Add sanitizer options
-  add_compile_options(-fsanitize=address,undefined)
 
-  # Enable address sanitizer
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
-endif()
+
 
 # Add the cmake_modules directory to CMAKE_MODULE_PATH
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules")
@@ -28,10 +23,31 @@ set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE}
     CACHE STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel tsan asan lsan msan ubsan"
     FORCE)
   
-include(cmake_modules/sanitizers.cmake)
+
+if(CMAKE_BUILD_TYPE STREQUAL "ASAN")
+  include(cmake_modules/sanitizers.cmake)
+  # AddressSanitize
+  set(CMAKE_C_FLAGS_ASAN
+      "-fsanitize=address -fno-optimize-sibling-calls -fsanitize-address-use-after-scope -fno-omit-frame-pointer -g -O0"
+      CACHE STRING "Flags used by the C compiler during AddressSanitizer builds."
+      FORCE)
+
+  set(
+    ASAN_OPTIONS
+    symbolize=1
+  )
+  message("Set ASAN_OPTIONS to: ${ASAN_OPTIONS}")
+
+  find_program(LLVM_SYMB_PATH llvm-symbolizer)
+  set(
+    ASAN_SYMBOLIZER_PATH
+    ${LLVM_SYMB_PATH}
+  )
+  message("Set ASAN_SYMBOLIZER_PATH to: ${ASAN_SYMBOLIZER_PATH}")
+endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmodules-ts")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer -fsanitize=undefined")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer -fsanitize=undefined")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmodule-mapper=${CMAKE_CURRENT_SOURCE_DIR}/modules/vermeer_module_map.txt")
 
 

@@ -69,14 +69,17 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 	let m1 = normalize(cross(m0, Z));
 	let m2 = normalize(cross(m0, m1));
 	
-	let M = transpose(mat3x3f(
-		m0[0], m0[1], m0[2],
+	let M = mat3x3f(
 		m1[0], m1[1], m1[2],
 		m2[0], m2[1], m2[2],
-	));
-
+		m0[0], m0[1], m0[2],
+	);
+	
+	//let N = in.normal;
+	//pos = in.r * pos;
 	pos = M * in.r * pos;
 	let N = M * in.normal;
+
 	if(in.flag == u32(0)) {pos += in.p0;}
 	if(in.flag == u32(1)) {pos += in.p1;}
 	

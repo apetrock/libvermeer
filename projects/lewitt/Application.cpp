@@ -27,6 +27,7 @@
 #include "Application.h"
 #include "lewitt/resources.hpp"
 #include "lewitt/draw_primitives.hpp"
+#include "lewitt/geometry_logger.h"
 
 #include <glfw3webgpu.h>
 #include <GLFW/glfw3.h>
@@ -104,7 +105,7 @@ bool Application::onInit()
 	return true;
 }
 
-void Application::onFrame()
+void Application::onFrame(uint frame)
 {
 	onCompute();
 
@@ -114,7 +115,11 @@ void Application::onFrame()
 	//_cylinder_normal_texture->get_bindings()->get_uniform_binding(_u_id)->set_member("time", static_cast<float>(glfwGetTime()));
 	// m_uniforms.time = static_cast<float>(glfwGetTime());
 	// m_queue.writeBuffer(m_uniformBuffer, offsetof(MyUniforms, time), &m_uniforms.time, sizeof(MyUniforms::time));
-
+	if (frame % 200 == 0)
+	{
+		_lines->clear();
+		genRandomLines(rand()%10000, _lines);
+	}
 	TextureView nextTexture = m_swapChain.getCurrentTextureView();
 	if (!nextTexture)
 	{
@@ -746,64 +751,38 @@ bool Application::initSphere()
 
 	return true;
 }
+
+std::tuple<vec3, vec3, vec3, float> rand_line()
+{
+	// use std::randomg device w/mersein twister
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<float> rvec(-1.0, 1.0);
+	std::uniform_real_distribution<float> rcol(0.0, 1.0);
+	vec3 v0(rvec(gen), rvec(gen), rvec(gen));
+	vec3 v1(rvec(gen), rvec(gen), rvec(gen));
+	vec3 col(rcol(gen), rcol(gen), rcol(gen));
+	float r = 0.1 * rcol(gen);
+	return {v0, v1, col, r};
+}
+void Application::genRandomLines(uint N, lewitt::doables::lineable::ptr lines)
+{
+	for (int i = 0; i < N; i++)
+	{
+		auto [v0, v1, col, r] = rand_line();
+		lines->add_line({v0, v1}, col, r);
+	}
+}
+
 bool Application::initCapsule()
 {
-
-	auto [vertices, normals, indices, flags] = lewitt::primitives::egg(64, 32, 0.5, 0.5, 0.0);
-
-	lewitt::buffers::buffer::ptr attr_buffer =
-			lewitt::buffers::buffer::create<vec3>(vertices, m_device, lewitt::flags::vertex::read);
-	attr_buffer->set_vertex_layout<vec3>(wgpu::VertexStepMode::Vertex);
-
-	lewitt::buffers::buffer::ptr norm_buffer =
-			lewitt::buffers::buffer::create<vec3>(normals, m_device, lewitt::flags::vertex::read);
-	norm_buffer->set_vertex_layout<vec3>(wgpu::VertexStepMode::Vertex);
-
-	lewitt::buffers::buffer::ptr index_buffer =
-			lewitt::buffers::buffer::create<uint32_t>(indices, m_device, lewitt::flags::index::read);
-
-	lewitt::buffers::buffer::ptr flag_buffer =
-			lewitt::buffers::buffer::create<uint32_t>(flags, m_device, lewitt::flags::vertex::read);
-	flag_buffer->set_vertex_layout<uint32_t>(wgpu::VertexStepMode::Vertex);
-
-	lewitt::doables::renderable::ptr capsule = lewitt::doables::renderable::create(
-			index_buffer, attr_buffer,
-			lewitt::shaders::shader_t::create(RESOURCE_DIR "/line.wgsl", m_device));
-
-	capsule->append_attribute_buffer(norm_buffer);
-	capsule->append_attribute_buffer(flag_buffer);
-
-	lewitt::buffers::buffer::ptr r_buffer =
-			lewitt::buffers::buffer::create<float>({0.25}, m_device,
-																						 lewitt::flags::vertex::read);
-	r_buffer->set_vertex_layout<float>(wgpu::VertexStepMode::Instance);
-	capsule->append_attribute_buffer(r_buffer);
-
-	lewitt::buffers::buffer::ptr p0_buffer =
-			lewitt::buffers::buffer::create<vec3>({vec3(-1.0, -1.0, -1.0)}, m_device,
-																						lewitt::flags::vertex::read);
-	p0_buffer->set_vertex_layout<vec3>(wgpu::VertexStepMode::Instance);
-	capsule->append_attribute_buffer(p0_buffer);
-
-	lewitt::buffers::buffer::ptr p1_buffer =
-			lewitt::buffers::buffer::create<vec3>({vec3(1.0, 1.0, 1.0)}, m_device,
-																						lewitt::flags::vertex::read);
-	p1_buffer->set_vertex_layout<vec3>(wgpu::VertexStepMode::Instance);
-	capsule->append_attribute_buffer(p1_buffer);
-
-
-	lewitt::buffers::buffer::ptr color_attr_buffer =
-			lewitt::buffers::buffer::create<vec3>({vec3(0.0, 1.0, 0.0)}, m_device,
-																						lewitt::flags::vertex::read);
-	color_attr_buffer->set_vertex_layout<vec3>(wgpu::VertexStepMode::Instance);
-
-	capsule->append_attribute_buffer(color_attr_buffer);
-
-	capsule->set_instance_count(p0_buffer->count());
-
-	capsule->set_texture_format(m_swapChainFormat, m_depthTextureFormat);
-	_renderables.push_back(capsule);
-
+	std::cout << "create lines" << std::endl;
+	lewitt::doables::lineable::ptr lines = lewitt::doables::lineable::create();
+	std::cout << "init lines" << std::endl;
+	genRandomLines(100, lines);
+	_renderables.push_back(lines);
+	lines->set_texture_format(m_swapChainFormat, m_depthTextureFormat);
+	_lines = lines;
 	return true;
 }
 

@@ -29,9 +29,9 @@
 int main(int, char**) {
 	Application app;
 	if (!app.onInit()) return 1;
-
+	uint frame = 0;
 	while (app.isRunning()) {
-		app.onFrame();
+		app.onFrame(frame++);
 	}
 
 	app.onFinish();

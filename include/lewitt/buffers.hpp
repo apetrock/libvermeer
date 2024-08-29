@@ -57,6 +57,7 @@ namespace lewitt
 
       ~buffer()
       {
+        if(!_vertexBuffer) return;
         _vertexBuffer.destroy();
         _vertexBuffer.release();
         _count = 0;
@@ -65,7 +66,7 @@ namespace lewitt
       bool init(size_t count, wgpu::Device &device)
       {
         wgpu::BufferDescriptor bufferDesc;
-        std::cout << "usage in init: " << _usage << std::endl;
+
         if (!_label.empty())
           bufferDesc.label = _label.c_str();
 
@@ -109,6 +110,11 @@ namespace lewitt
       bool write(const std::vector<FORMAT> &vertexData, wgpu::Device &device)
       {
         _sizeof_format = sizeof(FORMAT);
+
+        if(_vertexBuffer && _count < vertexData.size()){
+          _vertexBuffer.destroy();
+          _vertexBuffer = nullptr;
+        }
 
         if (!_vertexBuffer)
           init(vertexData.size(), device);

@@ -32,14 +32,9 @@
 
 #include <array>
 #include "lewitt/common.h"
-
-#include "lewitt/uniforms.hpp"
-#include "lewitt/bindings.hpp"
-#include "lewitt/shaders.hpp"
-
-#include "lewitt/buffers.hpp"
-#include "lewitt/vertex_formats.hpp"
 #include "lewitt/doables.hpp"
+#include "lewitt/geometry_logger.h"
+
 // Forward declare
 struct GLFWwindow;
 
@@ -50,7 +45,7 @@ public:
 	bool onInit();
 
 	// A function called at each frame, guaranteed never to be called before `onInit`.
-	void onFrame();
+	void onFrame(uint frame);
 	void onCompute();
 
 	// A function called only once at the very end.
@@ -97,6 +92,7 @@ private:
 	void updateProjectionMatrix();
 	void updateViewMatrix();
 	void updateDragInertia();
+	void genRandomLines(uint N, lewitt::doables::lineable::ptr lines);
 
 	bool initGui();																			// called in onInit
 	void terminateGui();																// called in onFinish
@@ -162,6 +158,7 @@ private:
 	std::vector<lewitt::doables::renderable::ptr> _renderables;
 	std::vector<lewitt::doables::computable::ptr> _computables;
 	lewitt::doables::renderable::ptr _cylinder_normal_texture;
+	lewitt::doables::lineable::ptr _lines;
 	//lewitt::doables::renderable::ptr _bunny;
 	//lewitt::doables::renderable::ptr _bunny_instanced;
 	//lewitt::doables::renderable::ptr _sphere;
@@ -169,7 +166,7 @@ private:
 	//lewitt::doables::renderable::ptr _capsule;
 	
 	int _u_id = -1, _u_lighting_id = -1;
-
+	
 	CameraState m_cameraState;
 	DragState m_drag;
 };

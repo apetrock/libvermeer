@@ -144,8 +144,9 @@ namespace lewitt
         }
       }
 
-      void draw(wgpu::RenderPassEncoder renderpass, wgpu::Device device)
+      virtual void draw(wgpu::RenderPassEncoder renderpass, wgpu::Device device)
       {
+
         prep_shader_vertex_format();
         init_pipeline(device);
         renderpass.setPipeline(_shader->render_pipe_line());

@@ -6,15 +6,23 @@
  *  Copyright 2010 __MyCompanyName__. All rights reserved.
  *
  */
+
 #pragma once
 #include "doables.hpp"
+#include "draw_primitives.hpp"
+
 #include <iostream>
 
-namespace lewitt {
+namespace lewitt
+{
 
-/*
+  namespace doables
+  {
     class lineable : public renderable
     {
+    public:
+      DEFINE_CREATE_FUNC(lineable);
+
       lineable()
       {
       }
@@ -24,6 +32,10 @@ namespace lewitt {
 
       void init(wgpu::Device device)
       {
+        if (_init)
+          return;
+
+        std::cout << "init line" << std::endl;
         auto [vertices, normals, indices, flags] = lewitt::primitives::egg(64, 32, 0.5, 0.5, 0.0);
 
         lewitt::buffers::buffer::ptr vert_buffer =
@@ -43,138 +55,113 @@ namespace lewitt {
 
         this->set_vertex_buffer(vert_buffer);
         this->set_index_buffer(index_buffer);
-        this->set_shader(lewitt::shaders::shader_t::create(RESOURCE_DIR "/line.wgsl", m_device));
+        this->set_shader(lewitt::shaders::shader_t::create(RESOURCE_DIR "/line.wgsl", device));
 
         this->append_attribute_buffer(norm_buffer);
         this->append_attribute_buffer(flag_buffer);
+
+        init_instance_buffers(device);
+        _init = true;
       }
 
-      void add_line()
+      void init_instance_buffers(wgpu::Device device)
       {
-
-        lewitt::buffers::buffer::ptr r_buffer =
-            lewitt::buffers::buffer::create<float>({0.25}, m_device,
-                                                   lewitt::flags::vertex::read);
-        r_buffer->set_vertex_layout<float>(wgpu::VertexStepMode::Instance);
-        capsule->append_attribute_buffer(r_buffer);
-
-        lewitt::buffers::buffer::ptr p0_buffer =
-            lewitt::buffers::buffer::create<vec3>({vec3(-1.0, -1.0, -1.0)}, m_device,
-                                                  lewitt::flags::vertex::read);
-        p0_buffer->set_vertex_layout<vec3>(wgpu::VertexStepMode::Instance);
-        capsule->append_attribute_buffer(p0_buffer);
-
-        lewitt::buffers::buffer::ptr p1_buffer =
-            lewitt::buffers::buffer::create<vec3>({vec3(1.0, 1.0, 1.0)}, m_device,
-                                                  lewitt::flags::vertex::read);
-        p1_buffer->set_vertex_layout<vec3>(wgpu::VertexStepMode::Instance);
-        capsule->append_attribute_buffer(p1_buffer);
-
-        lewitt::buffers::buffer::ptr offset_attr_buffer =
-            lewitt::buffers::buffer::create<vec3>({vec3(0.0, 0.0, 0.0)}, m_device,
-                                                  lewitt::flags::vertex::read);
-        offset_attr_buffer->set_vertex_layout<vec3>(wgpu::VertexStepMode::Instance);
-        capsule->append_attribute_buffer(offset_attr_buffer);
-
-        lewitt::buffers::buffer::ptr color_attr_buffer =
-            lewitt::buffers::buffer::create<vec3>({vec3(0.0, 1.0, 0.0)}, m_device,
-                                                  lewitt::flags::vertex::read);
-        color_attr_buffer->set_vertex_layout<vec3>(wgpu::VertexStepMode::Instance);
-
-        // right now need to copy the buffer, but should work, probably should work around
-        // this location assignment so that we can reuse buffers
-        capsule->append_attribute_buffer(color_attr_buffer);
-        //_sphere->append_attribute_buffer(norm_buffer);
-
-        lewitt::buffers::buffer::ptr quat_attr_buffer =
-            lewitt::buffers::buffer::create<quat>({quat(0.0, 0.0, 0.0, 1.0)}, m_device,
-                                                  lewitt::flags::vertex::read);
-        quat_attr_buffer->set_vertex_layout<quat>(wgpu::VertexStepMode::Instance);
-        capsule->append_attribute_buffer(quat_attr_buffer);
-
-        capsule->set_instance_count(offset_attr_buffer->count());
-
-        capsule->set_texture_format(m_swapChainFormat, m_depthTextureFormat);
+        std::cout << "init instance buffers" << std::endl;
+        _p0_buffer = lewitt::buffers::buffer::create();
+        _p1_buffer = lewitt::buffers::buffer::create();
+        _color_buffer = lewitt::buffers::buffer::create();
+        _r_buffer = lewitt::buffers::buffer::create();
+        _r_buffer->set_vertex_layout<float>(wgpu::VertexStepMode::Instance);
+        _p0_buffer->set_vertex_layout<vec3>(wgpu::VertexStepMode::Instance);
+        _p1_buffer->set_vertex_layout<vec3>(wgpu::VertexStepMode::Instance);
+        _color_buffer->set_vertex_layout<vec3>(wgpu::VertexStepMode::Instance);
+        append_attribute_buffer(_r_buffer);
+        append_attribute_buffer(_p0_buffer);
+        append_attribute_buffer(_p1_buffer);
+        append_attribute_buffer(_color_buffer);
+        set_instance_count(0);
       }
 
-      void prep_buffers(wgpu::Device device){
+      void clear()
+      {
+        _p0.clear();
+        _p1.clear();
+        _r.clear();
+        _color.clear();
+      }
 
-      } 
+      void add_line(const vec3x2 &line, const vec3 color = vec3(1.0, 0.0, 0.0), const float r = 1.0)
+      {
+        _p0.push_back(line[0]);
+        _p1.push_back(line[1]);
+        _r.push_back(r);
+        _color.push_back(color);
+      }
+
+      void prep_buffers(wgpu::Device device)
+      {
+        _p0_buffer->write<vec3>(_p0, device);
+        _p1_buffer->write<vec3>(_p1, device);
+        _color_buffer->write<vec3>(_color, device);
+        _r_buffer->write<float>(_r, device);
+      }
 
       void draw(wgpu::RenderPassEncoder renderpass, wgpu::Device device)
+
       {
+        init(device);
 
+        this->set_instance_count(_p0_buffer->count());
+        prep_buffers(device);
+        renderable::draw(renderpass, device);
       }
+      bool _init = false;
 
+      std::vector<vec3> _p0;
+      std::vector<vec3> _p1;
+      std::vector<vec3> _color;
+      std::vector<float> _r;
+
+      lewitt::buffers::buffer::ptr _p0_buffer;
+      lewitt::buffers::buffer::ptr _p1_buffer;
+      lewitt::buffers::buffer::ptr _r_buffer;
+      lewitt::buffers::buffer::ptr _color_buffer;
     };
-*/
-
-
-class geometry_logger;
-
-enum PresetColor {
-  grey,
-  red,
-  green,
-  blue,
-  rainbow,
-};
-
-inline Vec4d rainbow4(double d) {
-  double r = 0.5 + 0.5 * cos(2.0 * M_PI * (d + 0.000));
-  double g = 0.5 + 0.5 * cos(2.0 * M_PI * (d + 0.333));
-  double b = 0.5 + 0.5 * cos(2.0 * M_PI * (d + 0.666));
-  return Vec4d(r, g, b, 1.0);
-}
-
-inline Vec4d sdf4(double d) {
-  Vec4d inside(0.0, 1.0, 0.0, 1.0);
-  Vec4d outside(1.0, 0.0, 0.0, 1.0);
-  if (d < 0)
-    return abs(d) * inside;
-  else
-    return abs(d) * outside;
-}
-
-class geometry_logger {
-
-public:
-  gg::DebugBufferPtr debugLines = NULL;
-
-  static geometry_logger &get_instance();
-  static void render();
-  static void clear();
-  static void point(const Vec3d &p0, const Vec4d &color);
-  static void line4(const Vec4 &p0, const Vec4 &p1, const Vec4 &color);
-  static void line(const Vec3d &p0, const Vec3d &p1, const Vec4d &color);
-
-  static void box(const Vec3d &cen, const Vec3d &h, const Vec4d &col);
-  static void ext(const Vec3d &mn, const Vec3d &mx, const Vec4d &col);
-
-  static void lines(const std::vector<Vec3d> &p0, const std::vector<Vec3d> &p1,
-                    const std::vector<Vec4d> &colors);
-  static void field(const std::vector<Vec3d> &p, const std::vector<Vec3d> &dirs,
-                    double D = 0.1, PresetColor col = grey);
-
-  static void frame(Mat3d M, Vec3d c, double C);
-
-  bool &initialized() { return instance_flag; }
-  bool initialized() const { return instance_flag; }
-
-private:
-  geometry_logger() {
-    global_instance = this;
-
-    debugLines = gg::DebugBuffer::create();
-    debugLines->init();
   }
 
-  geometry_logger(const geometry_logger &);
-  geometry_logger &operator=(const geometry_logger &);
+  namespace logger
+  {
+    class geometry
+    {
 
-  static geometry_logger *global_instance;
-  static bool instance_flag;
-};
-} // namespace gg
+    public:
+      doables::lineable::ptr debugLines = NULL;
 
-#endif
+      static geometry &get_instance();
+      static void point(const vec3 & p, const vec3 &color, const float & r);
+      static void line(const vec3x2 & line, const vec3 &color, const float & r);
+
+      bool &initialized() { return instance_flag; }
+      bool initialized() const { return instance_flag; }
+
+    private:
+      geometry()
+      {
+        global_instance = this;
+
+        debugLines = doables::lineable::create();
+      }
+
+      geometry(const geometry &);
+      geometry &operator=(const geometry &);
+
+      static geometry *global_instance;
+      static bool instance_flag;
+    };
+  };
+}
+/*
+class geometry_logger;
+
+*/
+// namespace gg

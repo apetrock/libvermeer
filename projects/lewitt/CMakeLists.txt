@@ -7,6 +7,8 @@ project(${PROJECT_NAME})
 
 # Add your source files here
 set(SOURCES
+	#../src/lewitt/geometry_logger.cpp
+	../src/lewitt/geometry_logger.cpp
   main.cpp
 	Application.h
 	Application.cpp

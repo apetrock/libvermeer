@@ -19,7 +19,8 @@ namespace lewitt
       shader() {}
       ~shader()
       {
-        shaderModule.release();
+        if (shaderModule)
+          shaderModule.release();
       }
 
       wgpu::ShaderModule shaderModule = nullptr;
@@ -43,8 +44,7 @@ namespace lewitt
       }
 
       virtual void add_layout(
-          wgpu::VertexBufferLayout layout
-)
+          wgpu::VertexBufferLayout layout)
       {
         _layouts.push_back(layout);
       }
@@ -138,7 +138,8 @@ namespace lewitt
       }
       ~PN()
       {
-        m_pipeline.release();
+        if (m_pipeline)
+          m_pipeline.release();
       }
 
       bool
@@ -214,7 +215,8 @@ namespace lewitt
       }
       ~PNCUVTB()
       {
-        m_pipeline.release();
+        if (m_pipeline)
+          m_pipeline.release();
       }
 
       virtual bool
@@ -283,7 +285,8 @@ namespace lewitt
       }
       ~shader_t()
       {
-        m_pipeline.release();
+        if (m_pipeline)
+          m_pipeline.release();
       }
 
       virtual bool

@@ -1,19 +1,14 @@
+#pragma once
 #include <vector>
 #include <algorithm>
 #include "common.h"
-
-GLM_TYPEDEFS;
 
 namespace lewitt
 {
   namespace primitives
   {
-    struct line
-    {
-      vec3 start;
-      vec3 end;
-    };
 
+    GLM_TYPEDEFS;
     inline std::vector<vec3> compute_normals(const std::vector<vec3> &vertices, const std::vector<uint32_t> &indices)
     {
       std::vector<vec3> normals(vertices.size());
@@ -70,7 +65,7 @@ namespace lewitt
       }
       int N_long_seg = d_phi < M_PI ? N_long - 1 : N_long;
       int N_lat_seg = d_theta < 2.0 * M_PI ? N_lat - 1 : N_lat;
-      
+
       for (uint16_t j = 1; j < N_long - 1; j++)
       {
         for (uint16_t i = 0; i < N_lat_seg; i++)
@@ -94,9 +89,9 @@ namespace lewitt
         std::cout << vertices.size() << std::endl;
         std::cout << "adding top vertex" << std::endl;
         int top_index = vertices.size();
-        
+
         add_vertex(radius, 0, 0);
-         
+
         N = theta0 > 0 ? N_lat - 1 : N_lat;
         N = theta1 < 2.0 * M_PI ? N_lat - 1 : N_lat;
 
@@ -148,16 +143,16 @@ namespace lewitt
     }
 
     inline std::tuple<
-        std::vector<vec3>,    // positions
-        std::vector<vec3>,    // normals
+        std::vector<vec3>,     // positions
+        std::vector<vec3>,     // normals
         std::vector<uint32_t>, // indices
-        std::vector<uint32_t> // flags
+        std::vector<uint32_t>  // flags
         >
     egg(uint16_t N_long, uint16_t N_lat, float r0, float r1, float d)
     {
       float dp = sqrt(pow(d, 2.0) - pow(r1 - r0, 2.0));
       float theta = M_PI / 2 - atan2(fabs(r0 - r1), dp);
-      float theta2 = M_PI / 2 - atan(fabs(r0 - r1)/ dp);
+      float theta2 = M_PI / 2 - atan(fabs(r0 - r1) / dp);
 
       auto [vertices0, normals0, indices0] = sphere(N_long / 2, N_lat, r0, 0.0, theta);
       std::cout << "!!!!!!!!!!!egg egg vertices0: " << vertices0.size() << std::endl;
@@ -165,49 +160,46 @@ namespace lewitt
       std::cout << "!!!!!!!!!!!egg egg vertices1: " << vertices1.size() << std::endl;
 
       int N_half = vertices0.size();
-      std::transform(vertices0.begin(), vertices0.end(), vertices0.begin(), [&](const vec3 & v){
-        return vec3(v[0], v[1], v[2] + d/2);
-      });
-      std::transform(vertices1.begin(), vertices1.end(), vertices1.begin(), [&](const vec3 & v){
-        return vec3(v[0], v[1], v[2] - d/2);
-      });
-      std::transform(indices1.begin(), indices1.end(), indices1.begin(), [&](const int & idx){
-        return idx + N_half;
-      });
+      std::transform(vertices0.begin(), vertices0.end(), vertices0.begin(), [&](const vec3 &v)
+                     { return vec3(v[0], v[1], v[2] + d / 2); });
+      std::transform(vertices1.begin(), vertices1.end(), vertices1.begin(), [&](const vec3 &v)
+                     { return vec3(v[0], v[1], v[2] - d / 2); });
+      std::transform(indices1.begin(), indices1.end(), indices1.begin(), [&](const int &idx)
+                     { return idx + N_half; });
 
       vertices0.reserve(vertices0.size() + vertices1.size());
       normals0.reserve(normals0.size() + normals1.size());
       indices0.reserve(indices0.size() + indices1.size());
       std::copy(vertices1.begin(), vertices1.end(), std::back_inserter(vertices0));
-      std::copy(normals1.begin(), normals1.end(),std::back_inserter(normals0));
+      std::copy(normals1.begin(), normals1.end(), std::back_inserter(normals0));
       std::copy(indices1.begin(), indices1.end(), std::back_inserter(indices0));
 
-      for(int i = 0; i < N_lat; i++){
-          int i0 = N_half - N_lat - 1 + i;
-          int i1 = N_half - N_lat - 1 + (i + 1) % N_lat;
-          int i2 = N_half +  i;
-          int i3 = N_half + (i + 1) % N_lat;
-          indices0.push_back(i0);
-          indices0.push_back(i3);
-          indices0.push_back(i1);
-          indices0.push_back(i0);
-          indices0.push_back(i2);
-          indices0.push_back(i3);
+      for (int i = 0; i < N_lat; i++)
+      {
+        int i0 = N_half - N_lat - 1 + i;
+        int i1 = N_half - N_lat - 1 + (i + 1) % N_lat;
+        int i2 = N_half + i;
+        int i3 = N_half + (i + 1) % N_lat;
+        indices0.push_back(i0);
+        indices0.push_back(i3);
+        indices0.push_back(i1);
+        indices0.push_back(i0);
+        indices0.push_back(i2);
+        indices0.push_back(i3);
       }
 
       std::vector<uint32_t> flags(indices0.size(), 0);
-      std::transform(flags.begin(), flags.begin() + N_half, flags.begin(), [&](const int & idx){
-        return 1;
-      });
-      
+      std::transform(flags.begin(), flags.begin() + N_half, flags.begin(), [&](const int &idx)
+                     { return 1; });
+
       return {vertices0, normals0, indices0, flags};
     }
 
     inline std::tuple<
-        std::vector<vec3>,    // positions
-        std::vector<vec3>,    // normals
+        std::vector<vec3>,     // positions
+        std::vector<vec3>,     // normals
         std::vector<uint32_t>, // start cap, middle, end cap flags per face
-        std::vector<uint32_t> // indices
+        std::vector<uint32_t>  // indices
         >
     capsule(uint16_t N_long, uint16_t N_lat, float radius, float height)
     // Nc is the number of latitudinal segments around the cylinder
