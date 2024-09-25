@@ -52,7 +52,7 @@ namespace lewitt
         wgpu::Device &device)
     {
       assert(A->size() == B->size());
-      
+      std::string shader_src = op_shader(TYPE, OP, NAME);
       buffer::ptr out = buffer::create(A->count(), A->format_size(), device, flags::storage::write);
       bindings::group::ptr bindings = bindings::group::create();
       std::cout << "a bind" << std::endl;
@@ -81,8 +81,7 @@ namespace lewitt
       bindings->init(device);
       // we'll create a compute context which will store the invocation count and a map of pipelines which can be
       // lazily initialized.
-      std::string shader_src = op_shader(TYPE, OP, NAME);
-      shaders::compute_shader::ptr compute_shader = shaders::compute_shader::create_from_src(shader_src, device);
+      shaders::compute_shader::ptr compute_shader = shaders::compute_shader::create_from_src(shader_src, NAME, device);
       compute_shader->init(device, bindings->get_layout());
 
       buffer::ptr map_buff = buffer::create(out->count(), out->format_size(), device, flags::storage::map);
@@ -91,7 +90,7 @@ namespace lewitt
 
       passes::compute(device, [&](wgpu::ComputePassEncoder &compute_pass, wgpu::Device &device)
                       {
-                        compute_pass.setPipeline(compute_shader->pipeline());
+                        compute_pass.setPipeline(compute_shader->compute_pipe_line());
                         for (uint32_t i = 0; i < 1; ++i)
                         {
                           compute_pass.setBindGroup(0, bindings->get_group(), 0, nullptr);

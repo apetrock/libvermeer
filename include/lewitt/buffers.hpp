@@ -42,7 +42,7 @@ namespace lewitt
       {
         ptr n_buff = std::make_shared<buffer>();
         n_buff->set_usage(usage);
-        std::cout << "count: " << count << " size: " << size << std::endl;
+        std::cout << "count: " << count << " elem_size: " << size << std::endl;
         n_buff->init(count, size, device);
         
         return n_buff;

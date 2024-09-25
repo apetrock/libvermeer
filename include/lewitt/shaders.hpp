@@ -347,7 +347,7 @@ namespace lewitt
         return m_pipeline != nullptr;
       }
 
-      virtual wgpu::RenderPipeline pipeline() { return m_pipeline; }
+      virtual wgpu::RenderPipeline render_pipe_line() { return m_pipeline; }
       // wgpu::BindGroupLayout m_bindGroupLayout = nullptr;
       //  Bind Group
       // wgpu::BindGroup m_bindGroup = nullptr;
@@ -360,18 +360,20 @@ namespace lewitt
     public:
     using ptr = std::shared_ptr<compute_shader>;
     
-    static ptr create_from_path(const std::string & path, wgpu::Device &device){
+    static ptr create_from_path(const std::string & path, const std::string & entrypooint, wgpu::Device &device){
       ptr shader = std::make_shared<compute_shader>();
+      shader->set_entrypoint(entrypooint);
       shader->shaderModule = resources::load_shader_module(path, device);
       return shader;
     }
 
-    static ptr create_from_src(const std::string & src, wgpu::Device &device){
+    static ptr create_from_src(const std::string & src, const std::string & entrypooint, wgpu::Device &device){
       ptr shader = std::make_shared<compute_shader>();
+      shader->set_entrypoint(entrypooint);
       shader->shaderModule = resources::create_shader_module(src, device);
       return shader;
     }
-    
+
     compute_shader(){
     }
 
@@ -390,7 +392,7 @@ namespace lewitt
       wgpu::ComputePipelineDescriptor computePipelineDesc;
       computePipelineDesc.compute.constantCount = 0;
       computePipelineDesc.compute.constants = nullptr;
-      computePipelineDesc.compute.entryPoint = "trace";
+      computePipelineDesc.compute.entryPoint = _entrypoint.c_str();
       computePipelineDesc.compute.module = this->shaderModule;
       computePipelineDesc.layout = pipelineLayout;
       _pipeline = device.createComputePipeline(computePipelineDesc);
@@ -398,13 +400,17 @@ namespace lewitt
       return _pipeline != nullptr;
     }
 
-    virtual wgpu::ComputePipeline pipeline()
+    virtual void set_entrypoint(const std::string & str){
+      _entrypoint = str;
+    };
+
+    virtual wgpu::ComputePipeline compute_pipe_line()
     {
       return _pipeline;
     }
 
     wgpu::ComputePipeline _pipeline = nullptr;
-
+    std::string _entrypoint;
   };
 
   }
