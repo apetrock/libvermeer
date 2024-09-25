@@ -55,7 +55,7 @@ namespace lewitt
 
         this->set_vertex_buffer(vert_buffer);
         this->set_index_buffer(index_buffer);
-        this->set_shader(lewitt::shaders::shader_t::create(RESOURCE_DIR "/line.wgsl", device));
+        this->set_shader(lewitt::shaders::render_shader::create_from_path(RESOURCE_DIR "/line.wgsl", device));
 
         this->append_attribute_buffer(norm_buffer);
         this->append_attribute_buffer(flag_buffer);
@@ -140,7 +140,7 @@ namespace lewitt
       static geometry &get_instance();
       static void point(const vec3 & p, const vec3 &color, const float & r);
       static void line(const vec3x2 & line, const vec3 &color, const float & r);
-
+      static void clear();
       bool &initialized() { return instance_flag; }
       bool initialized() const { return instance_flag; }
 

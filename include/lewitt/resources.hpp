@@ -83,6 +83,22 @@ namespace lewitt
 			}
 		}
 
+		inline wgpu::ShaderModule create_shader_module(const std::string & src, wgpu::Device device){
+
+			wgpu::ShaderModuleWGSLDescriptor shaderCodeDesc;
+			shaderCodeDesc.chain.next = nullptr;
+			shaderCodeDesc.chain.sType = wgpu::SType::ShaderModuleWGSLDescriptor;
+			shaderCodeDesc.code = src.c_str();
+			wgpu::ShaderModuleDescriptor shaderDesc;
+			shaderDesc.nextInChain = &shaderCodeDesc.chain;
+#ifdef WEBGPU_BACKEND_WGPU
+			shaderDesc.hintCount = 0;
+			shaderDesc.hints = nullptr;
+#endif
+
+			return device.createShaderModule(shaderDesc);
+
+		}
 		// Load a shader from a WGSL file into a new shader module
 		inline wgpu::ShaderModule load_shader_module(const path &path, wgpu::Device device)
 		{
@@ -96,19 +112,7 @@ namespace lewitt
 			std::string shaderSource(size, ' ');
 			file.seekg(0);
 			file.read(shaderSource.data(), size);
-
-			wgpu::ShaderModuleWGSLDescriptor shaderCodeDesc;
-			shaderCodeDesc.chain.next = nullptr;
-			shaderCodeDesc.chain.sType = wgpu::SType::ShaderModuleWGSLDescriptor;
-			shaderCodeDesc.code = shaderSource.c_str();
-			wgpu::ShaderModuleDescriptor shaderDesc;
-			shaderDesc.nextInChain = &shaderCodeDesc.chain;
-#ifdef WEBGPU_BACKEND_WGPU
-			shaderDesc.hintCount = 0;
-			shaderDesc.hints = nullptr;
-#endif
-
-			return device.createShaderModule(shaderDesc);
+			return create_shader_module(shaderSource, device);
 		};
 
 				inline mat3x3 computeTBN(const VertexAttributes corners[3], const vec3 &expectedN)

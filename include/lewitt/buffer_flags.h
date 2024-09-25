@@ -16,10 +16,16 @@ namespace lewitt
         {
             inline constexpr WGPUBufferUsageFlags read =
                 (wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Storage);
-
-            inline constexpr WGPUBufferUsageFlags write =
+            inline constexpr WGPUBufferUsageFlags read_copy =
+                (wgpu::BufferUsage::CopySrc | wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Storage);
+            inline constexpr WGPUBufferUsageFlags copy =
                 (wgpu::BufferUsage::CopySrc | wgpu::BufferUsage::Storage);
-        }
+            inline constexpr WGPUBufferUsageFlags write =
+                (wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopySrc);
+            inline constexpr WGPUBufferUsageFlags map =
+                (wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::MapRead);
+        
+        }   
         namespace uniform
         {
             inline constexpr WGPUBufferUsageFlags read =

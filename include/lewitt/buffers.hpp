@@ -3,9 +3,9 @@
 #include "common.h"
 #include <webgpu/webgpu.hpp>
 #include "resources.hpp"
-#include "bindings.hpp"
 #include "vertex_formats.hpp"
 #include "buffer_flags.h"
+#include "passes.hpp"
 // there will have to be scene uniforms and buffer uniforms,
 // I think we can seperate all of those out.
 namespace lewitt
@@ -37,7 +37,17 @@ namespace lewitt
       {
         return std::make_shared<buffer>();
       }
-      
+
+      static ptr create(size_t count, size_t size, wgpu::Device &device, WGPUBufferUsageFlags usage = flags::storage::write)
+      {
+        ptr n_buff = std::make_shared<buffer>();
+        n_buff->set_usage(usage);
+        std::cout << "count: " << count << " size: " << size << std::endl;
+        n_buff->init(count, size, device);
+        
+        return n_buff;
+      }
+
       template <typename FORMAT>
       static ptr create(
           const std::vector<FORMAT> &vertexData,
@@ -57,16 +67,18 @@ namespace lewitt
 
       ~buffer()
       {
-        if(!_vertexBuffer) return;
+        if (!_vertexBuffer)
+          return;
         _vertexBuffer.destroy();
         _vertexBuffer.release();
         _count = 0;
       }
 
-      bool init(size_t count, wgpu::Device &device)
+      bool init(size_t count, size_t size, wgpu::Device &device)
       {
         wgpu::BufferDescriptor bufferDesc;
-
+        _sizeof_format = size;
+        _count = count;
         if (!_label.empty())
           bufferDesc.label = _label.c_str();
 
@@ -78,6 +90,38 @@ namespace lewitt
         _vertexBuffer = device.createBuffer(bufferDesc);
 
         return _vertexBuffer != nullptr;
+      }
+
+      template <typename FORMAT>
+      bool init(size_t count, wgpu::Device &device)
+      {
+        return init(count, sizeof(FORMAT), device);
+      }
+
+      template <typename FORMAT>
+      bool write(const std::vector<FORMAT> &vertexData, wgpu::Device &device)
+      {
+        _sizeof_format = sizeof(FORMAT);
+
+        if (_vertexBuffer && _count < vertexData.size())
+        {
+          _vertexBuffer.destroy();
+          _vertexBuffer = nullptr;
+        }
+
+        if (!_vertexBuffer)
+          init(vertexData.size(), _sizeof_format, device);
+
+        wgpu::Queue queue = device.getQueue();
+        _count = static_cast<size_t>(vertexData.size());
+
+        queue.writeBuffer(_vertexBuffer, 0, vertexData.data(), size());
+        return _vertexBuffer != nullptr;
+      }
+
+      template <typename FORMAT>
+      std::vector<FORMAT> read(wgpu::Device &device){
+        
       }
 
       template <typename... Types>
@@ -100,30 +144,10 @@ namespace lewitt
 
       void set_format_offset(uint32_t offset)
       {
-        for(int i = 0; i < _vertex_format.size(); i++)
+        for (int i = 0; i < _vertex_format.size(); i++)
         {
           _vertex_format[i].shaderLocation = i + offset;
         }
-      }
-
-      template <typename FORMAT>
-      bool write(const std::vector<FORMAT> &vertexData, wgpu::Device &device)
-      {
-        _sizeof_format = sizeof(FORMAT);
-
-        if(_vertexBuffer && _count < vertexData.size()){
-          _vertexBuffer.destroy();
-          _vertexBuffer = nullptr;
-        }
-
-        if (!_vertexBuffer)
-          init(vertexData.size(), device);
-
-        wgpu::Queue queue = device.getQueue();
-        _count = static_cast<size_t>(vertexData.size());
-
-        queue.writeBuffer(_vertexBuffer, 0, vertexData.data(), size());
-        return _vertexBuffer != nullptr;
       }
 
       bool valid()
@@ -137,6 +161,7 @@ namespace lewitt
       }
       size_t count() { return _count; }
       size_t size() { return _count * _sizeof_format; }
+      size_t format_size() { return _sizeof_format; }
 
       void set_label(const std::string &label) { _label = label; }
       void set_usage(const WGPUBufferUsageFlags &usage) { _usage = usage; }
@@ -148,14 +173,11 @@ namespace lewitt
       size_t _sizeof_format = 0;
       size_t _count = 0;
 
-      // optional Format/layout ptrs.
       vertex_formats::Format _vertex_format;
       wgpu::VertexBufferLayout _vertex_layout;
-
-      // material::ptr _material;
     };
 
-    //move this to draw_primitives... or some other name
+    // move this to draw_primitives... or some other name
     inline buffer::ptr load_cylinder(wgpu::Device &device)
     {
       wgpu::Queue queue = device.getQueue();
@@ -177,6 +199,5 @@ namespace lewitt
       attr_buffer->set_vertex_layout<vec3, vec3>(wgpu::VertexStepMode::Vertex);
       return {index_buffer, attr_buffer};
     }
-
   }
 }

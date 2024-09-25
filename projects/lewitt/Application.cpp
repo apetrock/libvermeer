@@ -90,9 +90,6 @@ bool Application::onInit()
 	if (!initRenderables())
 		return false;
 
-	if (!initTextures())
-		return false;
-
 	if (!initUniforms())
 		return false;
 	if (!initTestCompute())
@@ -110,15 +107,15 @@ void Application::onFrame(uint frame)
 	onCompute();
 
 	glfwPollEvents();
-	updateDragInertia();
-	updateLightingUniforms();
+	_render_scene->update();
+	_render_scene->update_uniforms(m_queue);
 	//_cylinder_normal_texture->get_bindings()->get_uniform_binding(_u_id)->set_member("time", static_cast<float>(glfwGetTime()));
 	// m_uniforms.time = static_cast<float>(glfwGetTime());
 	// m_queue.writeBuffer(m_uniformBuffer, offsetof(MyUniforms, time), &m_uniforms.time, sizeof(MyUniforms::time));
 	if (frame % 200 == 0)
 	{
-		_lines->clear();
-		genRandomLines(rand()%10000, _lines);
+		lewitt::logger::geometry::get_instance().clear();
+		logRandLines(rand()%10000);
 	}
 	TextureView nextTexture = m_swapChain.getCurrentTextureView();
 	if (!nextTexture)
@@ -163,11 +160,7 @@ void Application::onFrame(uint frame)
 	renderPassDesc.timestampWriteCount = 0;
 	renderPassDesc.timestampWrites = nullptr;
 	RenderPassEncoder renderPass = encoder.beginRenderPass(renderPassDesc);
-
-	//_cylinder->draw(renderPass, m_device);
-	std::for_each(_renderables.begin(), _renderables.end(), [&](const auto &e)
-								{ e->draw(renderPass, m_device); });
-
+	_render_scene->render(renderPass, m_device);
 	// We add the GUI drawing commands to the render pass
 	updateGui(renderPass);
 
@@ -202,9 +195,7 @@ void Application::onCompute()
 	computePassDesc.timestampWrites = nullptr;
 
 	ComputePassEncoder computePass = encoder.beginComputePass(computePassDesc);
-	std::for_each(_computables.begin(), _computables.end(), [&](const auto &e)
-								{ e->compute(computePass, m_device); });
-
+	_compute_scene->compute(computePass, m_device);
 	computePass.end();
 
 	// Encode and submit the GPU commands
@@ -241,25 +232,12 @@ void Application::onResize()
 	// Re-init
 	initSwapChain();
 	initDepthBuffer();
-
-	updateProjectionMatrix();
+		_render_scene->update_uniforms(m_queue);
 }
 
 void Application::onMouseMove(double xpos, double ypos)
 {
-	if (m_drag.active)
-	{
-		vec2 currentMouse = vec2(-(float)xpos, (float)ypos);
-		vec2 delta = (currentMouse - m_drag.startMouse) * m_drag.sensitivity;
-		m_cameraState.angles = m_drag.startCameraState.angles + delta;
-		// Clamp to avoid going too far when orbitting up/down
-		m_cameraState.angles.y = glm::clamp(m_cameraState.angles.y, -PI / 2 + 1e-5f, PI / 2 - 1e-5f);
-		updateViewMatrix();
-
-		// Inertia
-		m_drag.velocity = delta - m_drag.previousDelta;
-		m_drag.previousDelta = delta;
-	}
+		_render_scene->camera_move(xpos, ypos, m_queue);		
 }
 
 void Application::onMouseButton(int button, int action, int /* modifiers */)
@@ -277,24 +255,18 @@ void Application::onMouseButton(int button, int action, int /* modifiers */)
 		switch (action)
 		{
 		case GLFW_PRESS:
-			m_drag.active = true;
-			double xpos, ypos;
-			glfwGetCursorPos(m_window, &xpos, &ypos);
-			m_drag.startMouse = vec2(-(float)xpos, (float)ypos);
-			m_drag.startCameraState = m_cameraState;
+			_render_scene->camera_move_start();
 			break;
 		case GLFW_RELEASE:
-			m_drag.active = false;
+			_render_scene->camera_move_end();
 			break;
 		}
 	}
 }
 
-void Application::onScroll(double /* xoffset */, double yoffset)
+void Application::onScroll(double  xoffset, double yoffset)
 {
-	m_cameraState.zoom += m_drag.scrollSensitivity * static_cast<float>(yoffset);
-	m_cameraState.zoom = glm::clamp(m_cameraState.zoom, -2.0f, 2.0f);
-	updateViewMatrix();
+	_render_scene->camera_scroll(xoffset, yoffset, m_queue);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -337,38 +309,7 @@ bool Application::initWindowAndDevice()
 	std::cout << "Requesting device..." << std::endl;
 
 	RequiredLimits requiredLimits = Default;
-	requiredLimits.limits.maxVertexAttributes = 12;
-	//                                          ^ This was a 4
-	requiredLimits.limits.maxVertexBuffers = 10;
-	requiredLimits.limits.maxBufferSize = 1500000 * sizeof(VertexAttributes);
-	// requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes);
-	requiredLimits.limits.maxVertexBufferArrayStride = 128;
-
-	requiredLimits.limits.minStorageBufferOffsetAlignment = supportedLimits.limits.minStorageBufferOffsetAlignment;
-	requiredLimits.limits.minUniformBufferOffsetAlignment = supportedLimits.limits.minUniformBufferOffsetAlignment;
-	requiredLimits.limits.maxInterStageShaderComponents = 32;
-	//                                                    ^^ This was a 11
-	requiredLimits.limits.maxBindGroups = 4;
-	requiredLimits.limits.maxUniformBuffersPerShaderStage = 8;
-	requiredLimits.limits.maxUniformBufferBindingSize = 32 * 4 * sizeof(float);
-	// Allow textures up to 2K
-	requiredLimits.limits.maxTextureDimension1D = 2048;
-	requiredLimits.limits.maxTextureDimension2D = 2048;
-	requiredLimits.limits.maxTextureArrayLayers = 1;
-	requiredLimits.limits.maxSampledTexturesPerShaderStage = 2;
-	//                                                       ^ This was 1
-	requiredLimits.limits.maxSamplersPerShaderStage = 1;
-
-	requiredLimits.limits.maxStorageBuffersPerShaderStage = 8;
-	requiredLimits.limits.maxComputeWorkgroupSizeX = 256;
-	requiredLimits.limits.maxComputeWorkgroupSizeY = 256;
-	requiredLimits.limits.maxComputeWorkgroupSizeZ = 64;
-	requiredLimits.limits.maxComputeInvocationsPerWorkgroup = 64;
-	requiredLimits.limits.maxComputeWorkgroupsPerDimension = 1024;
-	requiredLimits.limits.maxStorageBufferBindingSize = 1500000 * sizeof(VertexAttributes);
-	;
-	requiredLimits.limits.maxStorageTexturesPerShaderStage = 1;
-
+	requiredLimits.limits = supportedLimits.limits;
 	DeviceDescriptor deviceDesc;
 	deviceDesc.label = "My Device";
 	deviceDesc.requiredFeaturesCount = 0;
@@ -492,110 +433,27 @@ void Application::terminateDepthBuffer()
 
 bool Application::initTestCompute()
 {
+	_compute_scene = lewitt::compute_scene::create();
 	// lewitt::doables::ray_compute::ptr ray_compute = lewitt::doables::ray_compute::create(m_device);
 	// ray_compute->init_textures(m_device);
 	//_computables.push_back(ray_compute);
 	return true;
 }
 
-bool Application::initTextures()
-{
-	lewitt::bindings::sampler::ptr sampler_binding =
-			lewitt::bindings::default_linear_filter(ShaderStage::Fragment, m_device);
-	// Create textures\
-	// m_baseColorTexture = ResourceManager::loadTexture(RESOURCE_DIR "/fourareen2K_albedo.jpg", m_device, &m_baseColorTextureView);
-
-	lewitt::bindings::texture::ptr base_texture_binding = lewitt::bindings::texture::create(
-			lewitt::resources::loadTextureAndView(RESOURCE_DIR "/cobblestone_floor_08_diff_2k.jpg", m_device));
-
-	base_texture_binding->set_frag_float_2d();
-	if (!base_texture_binding->valid())
-	{
-		std::cerr << "Could not load base color texture!" << std::endl;
-		return false;
-	}
-
-	lewitt::bindings::texture::ptr normal_texture_binding = lewitt::bindings::texture::create(
-			lewitt::resources::loadTextureAndView(RESOURCE_DIR "/cobblestone_floor_08_nor_gl_2k.png", m_device));
-	normal_texture_binding->set_frag_float_2d();
-
-	// worth making specifica doables for types of shaders/properties
-	_cylinder_normal_texture->get_bindings()->assign(2, base_texture_binding);
-	_cylinder_normal_texture->get_bindings()->assign(3, normal_texture_binding);
-	_cylinder_normal_texture->get_bindings()->assign(4, sampler_binding);
-
-	if (!normal_texture_binding->valid())
-	{
-		std::cerr << "Could not load normal texture!" << std::endl;
-		return false;
-	}
-	return true;
-}
 
 bool Application::initUniforms()
 {
-
-	using mat4 = lewitt::bindings::mat4;
-
-	// Create uniform buffer
-	std::cout << "init my uniforms" << std::endl;
-	lewitt::bindings::uniform::ptr uniform_binding =
-			lewitt::bindings::uniform::create<mat4, mat4, mat4, vec4, vec3, float>(
-					{"projectionMatrix",
-					 "viewMatrix",
-					 "modelMatrix",
-					 "color",
-					 "cameraWorldPosition",
-					 "time"},
-					m_device);
-	uniform_binding->set_visibility(ShaderStage::Vertex | ShaderStage::Fragment);
-	uniform_binding->set_member("modelMatrix", mat4x4(1.0));
-	uniform_binding->set_member("color", vec4(0.0f, 1.0f, 0.4f, 1.0f));
-	uniform_binding->set_member("viewMatrix", glm::lookAt(vec3(-2.0f, -3.0f, 2.0f), vec3(0.0f), vec3(0, 0, 1)));
-	uniform_binding->set_member("projectionMatrix", glm::perspective(45 * PI / 180, 640.0f / 480.0f, 0.01f, 100.0f));
-	uniform_binding->set_member("time", 1.0f);
-	std::cout << "scene_size: " << uniform_binding->_uniforms.size() << std::endl;
-	_u_id = 0;
-	std::for_each(_renderables.begin(), _renderables.end(), [&](auto &e)
-								{ e->get_bindings()->assign(_u_id, uniform_binding); });
-
-	updateProjectionMatrix();
-	updateViewMatrix();
-	return uniform_binding->valid();
+	return _render_scene->init_camera(m_window, m_device);
 }
 
 bool Application::initLightingUniforms()
 {
-	std::cout << "init lighting" << std::endl;
-	using vec4x2 = std::array<vec4, 2>;
-
-	;
-	lewitt::bindings::uniform::ptr lighting_uniform_binding =
-			lewitt::bindings::uniform::create<vec4x2, vec4x2, float, float, float, float>(
-					{"directions", "colors", "hardness", "kd", "ks", "pad"}, m_device);
-	lighting_uniform_binding->set_visibility(ShaderStage::Fragment);
-
-	vec4x2 dirs = {vec4(0.5f, -0.9f, 0.1f, 0.0f), vec4(0.2f, 0.4f, 0.3f, 0.0f)};
-	lighting_uniform_binding->set_member("directions", dirs);
-	vec4x2 colors = {vec4({1.0f, 0.9f, 0.6f, 1.0f}), vec4(0.6f, 0.9f, 1.0f, 1.0f)};
-	lighting_uniform_binding->set_member("colors", colors);
-	lighting_uniform_binding->set_member("hardness", 32.0f);
-	lighting_uniform_binding->set_member("kd", 1.0f);
-	lighting_uniform_binding->set_member("ks", 0.5f);
-	lighting_uniform_binding->set_member("pad", 0.0f);
-	_u_lighting_id = 1;
-	std::for_each(_renderables.begin(), _renderables.end(), [&](auto &e)
-								{ e->get_bindings()->assign(_u_lighting_id, lighting_uniform_binding); });
-
-	lewitt::uniforms::test_structish();
-	updateLightingUniforms();
-	return lighting_uniform_binding->valid();
+	return _render_scene->init_lighting(m_device);
 }
 
 void Application::updateLightingUniforms()
 {
-	std::for_each(_renderables.begin(), _renderables.end(), [&](auto &e)
-								{ e->get_bindings()->get_uniform_binding(_u_lighting_id)->update(m_queue); });
+	_render_scene->update_uniforms(m_queue);
 }
 
 bool Application::initBunny()
@@ -608,8 +466,7 @@ bool Application::initBunny()
 			lewitt::shaders::PN::create(m_device));
 
 	bunny->set_texture_format(m_swapChainFormat, m_depthTextureFormat);
-
-	_renderables.push_back(bunny);
+	_render_scene->renderables.push_back(bunny);
 	return true;
 }
 
@@ -667,7 +524,7 @@ bool Application::initBunnyInstanced()
 	std::cout << "creating bunny doable" << std::endl;
 	lewitt::doables::renderable::ptr _bunny = lewitt::doables::renderable::create(
 			index_buffer, attr_buffer,
-			lewitt::shaders::shader_t::create(RESOURCE_DIR "/pnc.wgsl", m_device));
+			lewitt::shaders::render_shader::create_from_path(RESOURCE_DIR "/pnc.wgsl", m_device));
 
 	attr_buffer->set_vertex_layout<vec3, vec3>(wgpu::VertexStepMode::Vertex);
 
@@ -692,7 +549,7 @@ bool Application::initBunnyInstanced()
 	_bunny->set_instance_count(offset_attr_buffer->count());
 
 	_bunny->set_texture_format(m_swapChainFormat, m_depthTextureFormat);
-	_renderables.push_back(_bunny);
+	_render_scene->renderables.push_back(_bunny);
 	return true;
 }
 
@@ -715,18 +572,18 @@ bool Application::initSphere()
 	lewitt::buffers::buffer::ptr index_buffer =
 			lewitt::buffers::buffer::create<uint32_t>(indices, m_device, lewitt::flags::index::read);
 
-	lewitt::doables::renderable::ptr _sphere = lewitt::doables::renderable::create(
+	lewitt::doables::renderable::ptr sphere = lewitt::doables::renderable::create(
 			index_buffer, attr_buffer,
-			lewitt::shaders::shader_t::create(RESOURCE_DIR "/pnc.wgsl", m_device));
+			lewitt::shaders::render_shader::create_from_path(RESOURCE_DIR "/pnc.wgsl", m_device));
 
-	_sphere->append_attribute_buffer(norm_buffer);
+	sphere->append_attribute_buffer(norm_buffer);
 
 	// adding vertex layout as an option would be good, otherwise
 	lewitt::buffers::buffer::ptr offset_attr_buffer =
 			lewitt::buffers::buffer::create<vec3>({vec3(0.0, 0.0, 0.0)}, m_device,
 																						lewitt::flags::vertex::read);
 	offset_attr_buffer->set_vertex_layout<vec3>(wgpu::VertexStepMode::Instance);
-	_sphere->append_attribute_buffer(offset_attr_buffer);
+	sphere->append_attribute_buffer(offset_attr_buffer);
 
 	lewitt::buffers::buffer::ptr color_attr_buffer =
 			lewitt::buffers::buffer::create<vec3>({vec3(0.0, 1.0, 0.0)}, m_device,
@@ -735,20 +592,20 @@ bool Application::initSphere()
 
 	// right now need to copy the buffer, but should work, probably should work around
 	// this location assignment so that we can reuse buffers
-	_sphere->append_attribute_buffer(color_attr_buffer);
+	sphere->append_attribute_buffer(color_attr_buffer);
 	//_sphere->append_attribute_buffer(norm_buffer);
 
 	lewitt::buffers::buffer::ptr quat_attr_buffer =
 			lewitt::buffers::buffer::create<quat>({quat(0.0, 0.0, 0.0, 1.0)}, m_device,
 																						lewitt::flags::vertex::read);
 	quat_attr_buffer->set_vertex_layout<quat>(wgpu::VertexStepMode::Instance);
-	_sphere->append_attribute_buffer(quat_attr_buffer);
+	sphere->append_attribute_buffer(quat_attr_buffer);
 
-	_sphere->set_instance_count(offset_attr_buffer->count());
+	sphere->set_instance_count(offset_attr_buffer->count());
 
-	_sphere->set_texture_format(m_swapChainFormat, m_depthTextureFormat);
-	_renderables.push_back(_sphere);
+	sphere->set_texture_format(m_swapChainFormat, m_depthTextureFormat);
 
+	_render_scene->renderables.push_back(sphere);
 	return true;
 }
 
@@ -765,24 +622,22 @@ std::tuple<vec3, vec3, vec3, float> rand_line()
 	float r = 0.1 * rcol(gen);
 	return {v0, v1, col, r};
 }
-void Application::genRandomLines(uint N, lewitt::doables::lineable::ptr lines)
+void Application::logRandLines(uint N)
 {
 	for (int i = 0; i < N; i++)
 	{
 		auto [v0, v1, col, r] = rand_line();
-		lines->add_line({v0, v1}, col, r);
+		lewitt::logger::geometry::line({v0,v1}, col, r);
 	}
 }
 
 bool Application::initCapsule()
 {
 	std::cout << "create lines" << std::endl;
-	lewitt::doables::lineable::ptr lines = lewitt::doables::lineable::create();
-	std::cout << "init lines" << std::endl;
-	genRandomLines(100, lines);
-	_renderables.push_back(lines);
-	lines->set_texture_format(m_swapChainFormat, m_depthTextureFormat);
-	_lines = lines;
+	lewitt::logger::geometry::get_instance().debugLines->set_texture_format(m_swapChainFormat, m_depthTextureFormat);
+	_render_scene->renderables.push_back(lewitt::logger::geometry::get_instance().debugLines);
+
+	logRandLines(100);
 	return true;
 }
 
@@ -794,70 +649,9 @@ bool Application::initCylinder()
 
 bool Application::initRenderables()
 {
-
-	_cylinder_normal_texture = lewitt::doables::renderable::create(
-			lewitt::buffers::load_cylinder(m_device),
-			lewitt::shaders::PNCUVTB::create(m_device));
-
-	_cylinder_normal_texture->set_texture_format(m_swapChainFormat, m_depthTextureFormat);
-	//_renderables.push_back(_cylinder_normal_texture);
-	// bool bunny_inited = initBunnyInstanced();
-	// bool sphere_inited = initSphere();
+	_render_scene = lewitt::render_scene::create();
 	initCapsule();
 	return true;
-}
-
-void Application::updateProjectionMatrix()
-{
-	// Update projection matrix
-	using mat4 = lewitt::bindings::mat4;
-
-	std::cout << "update projection" << std::endl;
-	int width, height;
-	glfwGetFramebufferSize(m_window, &width, &height);
-	float ratio = width / (float)height;
-	std::for_each(_renderables.begin(), _renderables.end(), [&](const auto &e)
-								{
-									lewitt::bindings::uniform::ptr uniforms = e->get_bindings()->get_uniform_binding(_u_id);
-									uniforms->set_member("projectionMatrix", glm::perspective(45 * PI / 180, ratio, 0.01f, 100.0f));
-									mat4 P = uniforms->get_member<mat4>("projectionMatrix");
-									uniforms->update(m_queue); });
-}
-
-void Application::updateViewMatrix()
-{
-	std::cout << "update view matrix" << std::endl;
-	float cx = cos(m_cameraState.angles.x);
-	float sx = sin(m_cameraState.angles.x);
-	float cy = cos(m_cameraState.angles.y);
-	float sy = sin(m_cameraState.angles.y);
-	vec3 position = vec3(cx * cy, sx * cy, sy) * std::exp(-m_cameraState.zoom);
-	std::for_each(_renderables.begin(), _renderables.end(), [&](const auto &e)
-								{
-									lewitt::bindings::uniform::ptr uniforms = e->get_bindings()->get_uniform_binding(_u_id);
-									uniforms->set_member("viewMatrix", glm::lookAt(position, vec3(0.0f), vec3(0, 0, 1)));
-									uniforms->set_member("cameraWorldPosition", position);
-	uniforms->update(m_queue); });
-}
-
-void Application::updateDragInertia()
-{
-	constexpr float eps = 1e-4f;
-	// Apply inertia only when the user released the click.
-	if (!m_drag.active)
-	{
-		// Avoid updating the matrix when the velocity is no longer noticeable
-		if (std::abs(m_drag.velocity.x) < eps && std::abs(m_drag.velocity.y) < eps)
-		{
-			return;
-		}
-		m_cameraState.angles += m_drag.velocity;
-		m_cameraState.angles.y = glm::clamp(m_cameraState.angles.y, -PI / 2 + 1e-5f, PI / 2 - 1e-5f);
-		// Dampen the velocity so that it decreases exponentially and stops
-		// after a few frames.
-		m_drag.velocity *= m_drag.intertia;
-		updateViewMatrix();
-	}
 }
 
 bool Application::initGui()

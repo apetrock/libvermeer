@@ -34,7 +34,6 @@ namespace lewitt
 
       virtual void add_to_group(std::vector<wgpu::BindGroupEntry> &bindings)
       {
-        std::cout << "parent add to group" << std::endl;
         bindings[_id].binding = _id;
       }
 
@@ -93,8 +92,6 @@ namespace lewitt
         bufferDesc.size = _uniforms.size();
         bufferDesc.usage = flags::uniform::read;
         bufferDesc.mappedAtCreation = false;
-        std::cout << "creating buffer: " << bufferDesc.size << std::endl;
-
         _buffer = device.createBuffer(bufferDesc);
       }
 
@@ -109,7 +106,6 @@ namespace lewitt
         bufferDesc.size = _uniforms.size();
         bufferDesc.usage = flags::uniform::read;
         bufferDesc.mappedAtCreation = false;
-        std::cout << "creating buffer: " << bufferDesc.size << std::endl;
 
         _buffer = device.createBuffer(bufferDesc);
       }
@@ -139,21 +135,17 @@ namespace lewitt
         if (_w_max > 0)
         {
           size_t size = _w_max - _w_min;
-          std::cout << "  uniform buffer update: " << _w_min << " " << _w_max << " " << _uniforms.size() << std::endl;
           __update_queue = std::stack<std::array<size_t, 2>>();
           // queue.writeBuffer(_buffer, _w_min, static_cast<const char *>(_uniforms.data()), size);
           queue.writeBuffer(_buffer, 0, static_cast<const char *>(_uniforms.data()), _uniforms.size());
           _w_min = _uniforms.size();
           _w_max = 0;
-          std::cout << "done!" << std::endl;
         }
       }
 
       virtual void add_to_layout(std::vector<wgpu::BindGroupLayoutEntry> &entries) override
       {
         // The normal map binding
-        std::cout << " uniform" << std::endl;
-        std::cout << "adding uniform to layout: " << _id << std::endl;
         wgpu::BindGroupLayoutEntry &layout = entries[_id];
         layout.binding = _id;
         layout.visibility = _visibility;
@@ -163,7 +155,6 @@ namespace lewitt
 
       virtual void add_to_group(std::vector<wgpu::BindGroupEntry> &bindings) override
       {
-        std::cout << "adding buffer to group: " << _id << ", " << _buffer << std::endl;
         this->binding::add_to_group(bindings);
         bindings[_id].buffer = _buffer;
         bindings[_id].offset = 0;
@@ -188,12 +179,19 @@ namespace lewitt
     class buffer : public binding
     {
     public:
-      using ptr = std::shared_ptr<buffer>;
+      using ptr = std::shared_ptr<bindings::buffer>;
 
       static ptr create()
       {
         ptr b = std::make_shared<buffer>();
         b->_buffer = buffers::buffer::create();
+        return b;
+      }
+
+      static ptr create(const lewitt::buffers::buffer::ptr & buf)
+      {
+        ptr b = std::make_shared<buffer>();
+        b->_buffer = buf;
         return b;
       }
 
@@ -288,12 +286,9 @@ namespace lewitt
       virtual void add_to_layout(std::vector<wgpu::BindGroupLayoutEntry> &entries)
       {
         // The normal map binding
-        std::cout << " texture" << std::endl;
         wgpu::BindGroupLayoutEntry &textBindingLayout = entries[_id];
         textBindingLayout.binding = _id;
         textBindingLayout.visibility = _visibility;
-        std::cout << "type 1: " << _sample_type << std::endl;
-        std::cout << "dim 1: " << _dim << std::endl;
         textBindingLayout.texture.sampleType = _sample_type;
         textBindingLayout.texture.viewDimension = _dim;
       }
@@ -388,7 +383,6 @@ namespace lewitt
       virtual void add_to_layout(std::vector<wgpu::BindGroupLayoutEntry> &entries)
       {
         // The normal map binding
-        std::cout << " sampler" << std::endl;
         wgpu::BindGroupLayoutEntry &bindingLayout = entries[_id];
         bindingLayout.binding = _id;
         bindingLayout.visibility = _visibility;
@@ -467,12 +461,22 @@ namespace lewitt
       }
       
 
+      int assign(const int &i, const buffers::buffer::ptr &buf)
+      {
+        bindings::buffer::ptr binding = bindings::buffer::create(buf);
+
+        if (_bindings.size() < i + 1)
+          _bindings.resize(i + 1, nullptr);
+        
+        _bindings[i] = binding;
+        return i;
+      }
+
       bool init_layout(wgpu::Device &device)
       {
         std::vector<wgpu::BindGroupLayoutEntry> bindingLayoutEntries(_bindings.size(), wgpu::Default);
         for (int i = 0; i < _bindings.size(); i++)
         {
-          std::cout << "i: " << i << std::endl;
           _bindings[i]->set_id(i);
           _bindings[i]->add_to_layout(bindingLayoutEntries);
         }

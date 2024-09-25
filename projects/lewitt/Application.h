@@ -33,8 +33,7 @@
 #include <array>
 #include "lewitt/common.h"
 #include "lewitt/doables.hpp"
-#include "lewitt/geometry_logger.h"
-
+#include "lewitt/scene.hpp"
 // Forward declare
 struct GLFWwindow;
 
@@ -71,9 +70,7 @@ private:
 
 	bool initDepthBuffer();
 	void terminateDepthBuffer();
-
-	bool initTextures();
-
+  
 	bool initUniforms();
 
 	bool initTestCompute();
@@ -89,10 +86,7 @@ private:
 	bool initBunnyInstanced();
 	bool initRenderables();
 
-	void updateProjectionMatrix();
-	void updateViewMatrix();
-	void updateDragInertia();
-	void genRandomLines(uint N, lewitt::doables::lineable::ptr lines);
+	void logRandLines(uint N);
 
 	bool initGui();																			// called in onInit
 	void terminateGui();																// called in onFinish
@@ -109,34 +103,6 @@ private:
 	 * The same structure as in the shader, replicated in C++
 	 */
 	//
-
-	struct CameraState
-	{
-		// angles.x is the rotation of the camera around the global vertical axis, affected by mouse.x
-		// angles.y is the rotation of the camera around its local horizontal axis, affected by mouse.y
-		vec2 angles = {0.8f, 0.5f};
-		// zoom is the position of the camera along its local forward axis, affected by the scroll wheel
-		float zoom = -1.2f;
-	};
-
-	struct DragState
-	{
-		// Whether a drag action is ongoing (i.e., we are between mouse press and mouse release)
-		bool active = false;
-		// The position of the mouse at the beginning of the drag action
-		vec2 startMouse;
-		// The camera state at the beginning of the drag action
-		CameraState startCameraState;
-
-		// Constant settings
-		float sensitivity = 0.01f;
-		float scrollSensitivity = 0.1f;
-
-		// Inertia
-		vec2 velocity = {0.0, 0.0};
-		vec2 previousDelta;
-		float intertia = 0.9f;
-	};
 
 	// Window and Device
 	GLFWwindow *m_window = nullptr;
@@ -155,18 +121,15 @@ private:
 	wgpu::TextureFormat m_depthTextureFormat = wgpu::TextureFormat::Depth24Plus;
 	wgpu::Texture m_depthTexture = nullptr;
 	wgpu::TextureView m_depthTextureView = nullptr;
-	std::vector<lewitt::doables::renderable::ptr> _renderables;
-	std::vector<lewitt::doables::computable::ptr> _computables;
-	lewitt::doables::renderable::ptr _cylinder_normal_texture;
-	lewitt::doables::lineable::ptr _lines;
+	//std::vector<lewitt::doables::renderable::ptr> _renderables;
+	//std::vector<lewitt::doables::computable::ptr> _computables;
+	lewitt::render_scene::ptr _render_scene;
+	lewitt::compute_scene::ptr _compute_scene;
+	
 	//lewitt::doables::renderable::ptr _bunny;
 	//lewitt::doables::renderable::ptr _bunny_instanced;
 	//lewitt::doables::renderable::ptr _sphere;
 	//lewitt::doables::renderable::ptr _cylinder;
 	//lewitt::doables::renderable::ptr _capsule;
 	
-	int _u_id = -1, _u_lighting_id = -1;
-	
-	CameraState m_cameraState;
-	DragState m_drag;
 };

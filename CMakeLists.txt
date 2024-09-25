@@ -66,6 +66,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ext/glfw/include())
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ext/glfw3webgpu())
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ext/webgpu-native/include())
 
+
 set(DEV_MODE TRUE CACHE BOOL "Dev mode switch" FORCE)
 if(DEV_MODE)
     add_definitions(-DRESOURCE_DIR="${CMAKE_SOURCE_DIR}/assets")
@@ -88,9 +89,10 @@ endif()
 
 #include(modules/load_modules.cmake)
 
-
+file(GLOB LEWITT_SOURCES "${CMAKE_SOURCE_DIR}/src/lewitt/*.cpp")
 #add_subdirectory(projects/hello_world)
 add_subdirectory(projects/hello_webgpu_render)
 add_subdirectory(projects/hello_webgpu_compute)
 add_subdirectory(projects/aabb_test)
 add_subdirectory(projects/lewitt)
+add_subdirectory(projects/app_test)

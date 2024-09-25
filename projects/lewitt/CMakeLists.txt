@@ -8,7 +8,6 @@ project(${PROJECT_NAME})
 # Add your source files here
 set(SOURCES
 	#../src/lewitt/geometry_logger.cpp
-	../src/lewitt/geometry_logger.cpp
   main.cpp
 	Application.h
 	Application.cpp
@@ -21,7 +20,7 @@ set(MODULES
 )
 
 # Add your executable target
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME} ${SOURCES} ${LEWITT_SOURCES})
 
 target_link_libraries(${PROJECT_NAME} glfw webgpu glfw3webgpu imgui)
 target_copy_webgpu_binaries(${PROJECT_NAME})

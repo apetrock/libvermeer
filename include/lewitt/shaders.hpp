@@ -274,16 +274,29 @@ namespace lewitt
       wgpu::RenderPipeline m_pipeline = nullptr;
     };
 
-    class shader_t : public shader
+    class render_shader : public shader
     {
     public:
-      DEFINE_CREATE_FUNC(shader_t)
-      shader_t(std::string path, wgpu::Device &device)
-      {
-        std::cout << "Creating shader module..." << std::endl;
-        this->shaderModule = resources::load_shader_module(path, device);
+
+      using ptr = std::shared_ptr<render_shader>;
+
+      static ptr create_from_path(std::string path, wgpu::Device &device){
+        ptr shader = std::make_shared<render_shader>();
+        shader->shaderModule = resources::load_shader_module(path, device);
+        return shader;
       }
-      ~shader_t()
+      
+      static ptr create_from_src(std::string src, wgpu::Device &device){
+        ptr shader = std::make_shared<render_shader>();
+        shader->shaderModule = resources::create_shader_module(src, device);
+        return shader;
+      }
+
+      render_shader()
+      {
+      }
+
+      ~render_shader()
       {
         if (m_pipeline)
           m_pipeline.release();
@@ -334,13 +347,65 @@ namespace lewitt
         return m_pipeline != nullptr;
       }
 
-      virtual wgpu::RenderPipeline render_pipe_line() { return m_pipeline; }
+      virtual wgpu::RenderPipeline pipeline() { return m_pipeline; }
       // wgpu::BindGroupLayout m_bindGroupLayout = nullptr;
       //  Bind Group
       // wgpu::BindGroup m_bindGroup = nullptr;
       bindings::group::ptr _bind_group;
       wgpu::RenderPipeline m_pipeline = nullptr;
     };
+
+
+  class compute_shader : public shaders::shader { 
+    public:
+    using ptr = std::shared_ptr<compute_shader>;
+    
+    static ptr create_from_path(const std::string & path, wgpu::Device &device){
+      ptr shader = std::make_shared<compute_shader>();
+      shader->shaderModule = resources::load_shader_module(path, device);
+      return shader;
+    }
+
+    static ptr create_from_src(const std::string & src, wgpu::Device &device){
+      ptr shader = std::make_shared<compute_shader>();
+      shader->shaderModule = resources::create_shader_module(src, device);
+      return shader;
+    }
+    
+    compute_shader(){
+    }
+
+    bool
+    init(wgpu::Device &device,
+          wgpu::BindGroupLayout &bind_group_layout)
+    {
+      // Create compute pipeline layout
+      std::cout << "init compute pipeline" << std::endl;
+      wgpu::PipelineLayoutDescriptor pipelineLayoutDesc;
+      pipelineLayoutDesc.bindGroupLayoutCount = 1;
+      pipelineLayoutDesc.bindGroupLayouts = (WGPUBindGroupLayout *)&bind_group_layout;
+      wgpu::PipelineLayout pipelineLayout = device.createPipelineLayout(pipelineLayoutDesc);
+
+      // Create compute pipeline
+      wgpu::ComputePipelineDescriptor computePipelineDesc;
+      computePipelineDesc.compute.constantCount = 0;
+      computePipelineDesc.compute.constants = nullptr;
+      computePipelineDesc.compute.entryPoint = "trace";
+      computePipelineDesc.compute.module = this->shaderModule;
+      computePipelineDesc.layout = pipelineLayout;
+      _pipeline = device.createComputePipeline(computePipelineDesc);
+
+      return _pipeline != nullptr;
+    }
+
+    virtual wgpu::ComputePipeline pipeline()
+    {
+      return _pipeline;
+    }
+
+    wgpu::ComputePipeline _pipeline = nullptr;
+
+  };
 
   }
 }

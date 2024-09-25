@@ -8,7 +8,7 @@
  */
 
 // #include <gl/glut.h>
-#include "geometry_logger.h"
+#include "lewitt/geometry_logger.h"
 
 namespace lewitt
 {
@@ -45,5 +45,10 @@ namespace lewitt
       logger.debugLines->add_line(line, color, r);
     }
 
+    void geometry::clear()
+    {
+      geometry &logger = geometry::get_instance();
+      logger.debugLines->clear();
+    }
   } // namespace gg
 }
