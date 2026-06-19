@@ -1,22 +1,47 @@
 
 #pragma once
 
+#include <functional>
+#include <iostream>
+#include <vector>
+
 #include <webgpu/webgpu.hpp>
+
+#include "lewitt/render_targets.hpp"
 
 namespace lewitt
 {
   namespace passes
   {
+    inline render_targets::external_color_attachment
+    swapchain_color_attachment(wgpu::SwapChain swapchain)
+    {
+      render_targets::external_color_attachment color{};
+      color.view = swapchain.getCurrentTextureView();
+      if (!color.view)
+      {
+        return color;
+      }
+      color.state.clear_color = wgpu::Color{0.05, 0.05, 0.05, 1.0};
+      color.release_view_after_pass = true;
+      return color;
+    }
+
     inline void render(wgpu::SwapChain swapchain,
                        wgpu::Device &device,
-                       wgpu::TextureView &depth_texture_view,
-                       std::function<void(wgpu::RenderPassEncoder &, wgpu::Device &)> fcn)
+                       render_targets::frame_attachments &attachments,
+                       std::function<void(wgpu::RenderPassEncoder &, wgpu::Device &)> fcn,
+                       bool present = true)
     {
-      wgpu::TextureView nextTexture = swapchain.getCurrentTextureView();
-      if (!nextTexture)
+      render_targets::external_color_attachment color = attachments.color;
+      if (!color.view && attachments.pooled_colors.empty())
       {
-        std::cerr << "Cannot acquire next swap chain texture" << std::endl;
-        return;
+        color = swapchain_color_attachment(swapchain);
+        if (!color.view)
+        {
+          std::cerr << "Cannot acquire next swap chain texture" << std::endl;
+          return;
+        }
       }
 
       wgpu::Queue queue = device.getQueue();
@@ -25,33 +50,41 @@ namespace lewitt
       wgpu::CommandEncoder encoder = device.createCommandEncoder(commandEncoderDesc);
 
       wgpu::RenderPassDescriptor renderPassDesc{};
+      renderPassDesc.setDefault();
 
-      wgpu::RenderPassColorAttachment renderPassColorAttachment{};
-      renderPassColorAttachment.view = nextTexture;
-      renderPassColorAttachment.resolveTarget = nullptr;
-      renderPassColorAttachment.loadOp = wgpu::LoadOp::Clear;
-      renderPassColorAttachment.storeOp = wgpu::StoreOp::Store;
-      renderPassColorAttachment.clearValue = wgpu::Color{0.05, 0.05, 0.05, 1.0};
-      renderPassDesc.colorAttachmentCount = 1;
-      renderPassDesc.colorAttachments = &renderPassColorAttachment;
+      wgpu::RenderPassColorAttachment single_color_attachment{};
+      if (!attachments.pooled_colors.empty())
+      {
+        renderPassDesc.colorAttachmentCount =
+            static_cast<uint32_t>(attachments.pooled_colors.size());
+        renderPassDesc.colorAttachments = attachments.pooled_colors.data();
+      }
+      else if (color.view)
+      {
+        single_color_attachment.view = color.view;
+        single_color_attachment.resolveTarget = nullptr;
+        single_color_attachment.loadOp = color.state.load_op;
+        single_color_attachment.storeOp = color.state.store_op;
+        single_color_attachment.clearValue = color.state.clear_color;
+        renderPassDesc.colorAttachmentCount = 1;
+        renderPassDesc.colorAttachments = &single_color_attachment;
+      }
 
-      wgpu::RenderPassDepthStencilAttachment depthStencilAttachment;
-      depthStencilAttachment.view = depth_texture_view;
-      depthStencilAttachment.depthClearValue = 1.0f;
-      depthStencilAttachment.depthLoadOp = wgpu::LoadOp::Clear;
-      depthStencilAttachment.depthStoreOp = wgpu::StoreOp::Store;
-      depthStencilAttachment.depthReadOnly = false;
-      depthStencilAttachment.stencilClearValue = 0;
-#ifdef WEBGPU_BACKEND_WGPU
-      depthStencilAttachment.stencilLoadOp = wgpu::LoadOp::Clear;
-      depthStencilAttachment.stencilStoreOp = wgpu::StoreOp::Store;
-#else
-      depthStencilAttachment.stencilLoadOp = wgpu::LoadOp::Undefined;
-      depthStencilAttachment.stencilStoreOp = wgpu::StoreOp::Undefined;
-#endif
-      depthStencilAttachment.stencilReadOnly = true;
-
-      renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
+      wgpu::RenderPassDepthStencilAttachment depthStencilAttachment{};
+      if (attachments.depth_view)
+      {
+        depthStencilAttachment.setDefault();
+        depthStencilAttachment.view = attachments.depth_view;
+        depthStencilAttachment.depthClearValue = attachments.depth_state.depth_clear;
+        depthStencilAttachment.depthLoadOp = attachments.depth_state.load_op;
+        depthStencilAttachment.depthStoreOp = attachments.depth_state.store_op;
+        depthStencilAttachment.depthReadOnly = attachments.depth_state.depth_read_only;
+        depthStencilAttachment.stencilClearValue = attachments.depth_state.stencil_clear;
+        depthStencilAttachment.stencilLoadOp = wgpu::LoadOp::Clear;
+        depthStencilAttachment.stencilStoreOp = wgpu::StoreOp::Store;
+        depthStencilAttachment.stencilReadOnly = attachments.depth_state.stencil_read_only;
+        renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
+      }
 
       renderPassDesc.timestampWriteCount = 0;
       renderPassDesc.timestampWrites = nullptr;
@@ -62,7 +95,10 @@ namespace lewitt
       renderPass.end();
       renderPass.release();
 
-      nextTexture.release();
+      if (color.release_view_after_pass && color.view)
+      {
+        color.view.release();
+      }
 
       wgpu::CommandBufferDescriptor cmdBufferDescriptor{};
       cmdBufferDescriptor.label = "Command buffer";
@@ -71,12 +107,21 @@ namespace lewitt
       queue.submit(command);
       command.release();
 
-      swapchain.present();
+      if (present && swapchain)
+      {
+        swapchain.present();
+      }
+    }
 
-#ifdef WEBGPU_BACKEND_DAWN
-      // Check for pending error callbacks
-      m_device.tick();
-#endif
+    inline void render(wgpu::SwapChain swapchain,
+                       wgpu::Device &device,
+                       render_targets::target_pool &target_pool,
+                       render_targets::frame_attachments attachments,
+                       std::function<void(wgpu::RenderPassEncoder &, wgpu::Device &)> fcn,
+                       bool present = true)
+    {
+      attachments = render_targets::resolve_attachments(&target_pool, std::move(attachments));
+      render(swapchain, device, attachments, std::move(fcn), present);
     }
 
     inline void compute(wgpu::Device &device,
@@ -87,7 +132,6 @@ namespace lewitt
       wgpu::CommandEncoderDescriptor encoderDesc = wgpu::Default;
       wgpu::CommandEncoder encoder = device.createCommandEncoder(encoderDesc);
 
-      // Create compute pass
       wgpu::ComputePassDescriptor computePassDesc;
       computePassDesc.timestampWriteCount = 0;
       computePassDesc.timestampWrites = nullptr;
@@ -95,11 +139,9 @@ namespace lewitt
       wgpu::ComputePassEncoder compute_pass = encoder.beginComputePass(computePassDesc);
       if (compute_fcn)
         compute_fcn(compute_pass, device);
-      // computePass.end();
       compute_pass.end();
       if (encoder_fcn)
         encoder_fcn(encoder);
-      // Encode and submit the GPU commands
       wgpu::CommandBuffer commands = encoder.finish(wgpu::CommandBufferDescriptor{});
 
       queue.submit(commands);

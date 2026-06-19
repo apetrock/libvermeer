@@ -4,6 +4,9 @@
 #include "lewitt/draw_primitives.hpp"
 #include "lewitt/geometry_logger.h"
 #include "lewitt/passes.hpp"
+#include "lewitt/gbuffer_pipeline.hpp"
+#include "lewitt/gpu_session.hpp"
+#include "lewitt/present_target.hpp"
 
 #include "lewitt/buffers.hpp"
 #include "lewitt/buffer_ops.hpp"
@@ -54,39 +57,104 @@ namespace lewitt
 	///////////////////////////////////////////////////////////////////////////////
 	// Public methods
 
-	bool app_runner::onInit()
+	bool app_runner::onInit(uint32_t width, uint32_t height)
 	{
+		m_windowWidth = width;
+		m_windowHeight = height;
 
 		if (!initWindowAndDevice())
 			return false;
 		if (!initSwapChain())
 			return false;
-		if (!initDepthBuffer())
-			return false;
+
+		{
+			int width = 0;
+			int height = 0;
+			glfwGetFramebufferSize(m_window, &width, &height);
+			m_framebufferExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
+			if (!m_framebufferExtent.width || !m_framebufferExtent.height) {
+				m_framebufferExtent = {m_windowWidth, m_windowHeight};
+			}
+		}
 
 		if (!init_scenes())
 			return false;
+
+		if (m_projectBuilder) {
+			auto ctx = make_gpu_context();
+			m_projectRenderer = m_projectBuilder(ctx);
+			if (!m_projectRenderer || !m_projectRenderer->init(ctx)) {
+				return false;
+			}
+		} else if (!initGbufferPipeline()) {
+			return false;
+		}
 
 		if (!initGui())
 			return false;
 		return true;
 	}
 
+	void app_runner::set_init_callback(std::function<bool()> callback)
+	{
+		_init_callback = std::move(callback);
+	}
+
+	void app_runner::set_frame_callback(std::function<void(uint)> callback)
+	{
+		_frame_callback = std::move(callback);
+	}
+
+	void app_runner::set_before_render_callback(std::function<void(uint)> callback)
+	{
+		_before_render_callback = std::move(callback);
+	}
+
+	void app_runner::set_project_renderer(project_builder builder)
+	{
+		m_projectBuilder = std::move(builder);
+	}
+
+	void app_runner::add_gbuffer_renderable(doables::g_buffer_renderable::ptr renderable)
+	{
+		if (!renderable) {
+			return;
+		}
+		m_gbufferRenderables.push_back(std::move(renderable));
+	}
+
 	void app_runner::onFrame(uint frame)
 	{
+		if (_frame_callback)
+			_frame_callback(frame);
+
 		onCompute();
 
 		glfwPollEvents();
+
+		if (m_projectRenderer) {
+			auto ctx = make_gpu_context();
+			m_projectRenderer->update(ctx, frame);
+			m_projectRenderer->render(ctx, [&](wgpu::RenderPassEncoder &render_pass) {
+				updateGui(render_pass);
+			});
+			return;
+		}
+
 		_render_scene->update();
 		_render_scene->update_uniforms(m_queue);
-		//_cylinder_normal_texture->get_bindings()->get_uniform_binding(_u_id)->set_member("time", static_cast<float>(glfwGetTime()));
-		// m_uniforms.time = static_cast<float>(glfwGetTime());
-		// m_queue.writeBuffer(m_uniformBuffer, offsetof(MyUniforms, time), &m_uniforms.time, sizeof(MyUniforms::time));
-		passes::render(m_swapChain, m_device, m_depthTextureView,
-									 [&](wgpu::RenderPassEncoder &render_pass, wgpu::Device &device)
-									 {
-										 _render_scene->render(render_pass, device);
-										 // We add the GUI drawing commands to the render pass
+
+		m_gbufferPass.execute(m_device, [&](wgpu::RenderPassEncoder &render_pass, wgpu::Device &device) {
+			if (_before_render_callback)
+				_before_render_callback(frame);
+		});
+
+		render_targets::frame_attachments swapchain_attachments{};
+		passes::render(m_swapChain, m_device, swapchain_attachments,
+									 [&](wgpu::RenderPassEncoder &render_pass, wgpu::Device &device) {
+										 if (m_passthrough) {
+											 m_passthrough->draw(render_pass, device, m_queue, m_gbufferPass.pool());
+										 }
 										 updateGui(render_pass);
 									 });
 	}
@@ -154,7 +222,7 @@ namespace lewitt
 	void app_runner::onFinish()
 	{
 		terminateGui();
-		terminateDepthBuffer();
+		terminateGbufferPipeline();
 		terminateSwapChain();
 		terminateWindowAndDevice();
 	}
@@ -166,13 +234,26 @@ namespace lewitt
 
 	void app_runner::onResize()
 	{
-		// Terminate in reverse order
-		terminateDepthBuffer();
 		terminateSwapChain();
-
-		// Re-init
 		initSwapChain();
-		initDepthBuffer();
+
+		int width, height;
+		glfwGetFramebufferSize(m_window, &width, &height);
+		m_framebufferExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
+		if (!m_framebufferExtent.width || !m_framebufferExtent.height) {
+			m_framebufferExtent = {m_windowWidth, m_windowHeight};
+		}
+		if (m_projectRenderer) {
+			auto ctx = make_gpu_context();
+			m_projectRenderer->resize(ctx);
+			return;
+		}
+		m_gbufferPass.resize(m_device, m_framebufferExtent);
+		resources::wire(m_gbufferPass.outputs().position, m_passthroughInputs.source);
+		if (m_passthrough) {
+			m_passthrough->set_input(nodes::passthrough_visualizer::input_port::source,
+															 m_passthroughInputs);
+		}
 
 		_render_scene->update_uniforms(m_queue);
 	}
@@ -231,7 +312,8 @@ namespace lewitt
 
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-		m_window = glfwCreateWindow(640, 480, "Learn WebGPU", NULL, NULL);
+		m_window = glfwCreateWindow(static_cast<int>(m_windowWidth),
+		                            static_cast<int>(m_windowHeight), "Learn WebGPU", NULL, NULL);
 		if (!m_window)
 		{
 			std::cerr << "Could not open window!" << std::endl;
@@ -332,45 +414,41 @@ namespace lewitt
 		m_swapChain.release();
 	}
 
-	bool app_runner::initDepthBuffer()
+	bool app_runner::initGbufferPipeline()
 	{
-		// Get the current size of the window's framebuffer:
 		int width, height;
 		glfwGetFramebufferSize(m_window, &width, &height);
+		m_framebufferExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
+		if (!m_framebufferExtent.width || !m_framebufferExtent.height) {
+			m_framebufferExtent = {m_windowWidth, m_windowHeight};
+		}
 
-		// Create the depth texture
-		TextureDescriptor depthTextureDesc;
-		depthTextureDesc.dimension = TextureDimension::_2D;
-		depthTextureDesc.format = m_depthTextureFormat;
-		depthTextureDesc.mipLevelCount = 1;
-		depthTextureDesc.sampleCount = 1;
-		depthTextureDesc.size = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1};
-		depthTextureDesc.usage = TextureUsage::RenderAttachment;
-		depthTextureDesc.viewFormatCount = 1;
-		depthTextureDesc.viewFormats = (WGPUTextureFormat *)&m_depthTextureFormat;
-		m_depthTexture = m_device.createTexture(depthTextureDesc);
-		std::cout << "Depth texture: " << m_depthTexture << std::endl;
+		if (m_gbufferPass.empty()) {
+			for (const auto &renderable : m_gbufferRenderables) {
+				m_gbufferPass.add(renderable);
+				if (_render_scene) {
+					_render_scene->bind_camera(renderable);
+				}
+			}
+		}
 
-		// Create the view of the depth texture manipulated by the rasterizer
-		TextureViewDescriptor depthTextureViewDesc;
-		depthTextureViewDesc.aspect = TextureAspect::DepthOnly;
-		depthTextureViewDesc.baseArrayLayer = 0;
-		depthTextureViewDesc.arrayLayerCount = 1;
-		depthTextureViewDesc.baseMipLevel = 0;
-		depthTextureViewDesc.mipLevelCount = 1;
-		depthTextureViewDesc.dimension = TextureViewDimension::_2D;
-		depthTextureViewDesc.format = m_depthTextureFormat;
-		m_depthTextureView = m_depthTexture.createView(depthTextureViewDesc);
-		std::cout << "Depth texture view: " << m_depthTextureView << std::endl;
+		const auto outputs = m_gbufferPass.init(m_device, m_framebufferExtent);
+		resources::wire(outputs.position, m_passthroughInputs.source);
 
-		return m_depthTextureView != nullptr;
+		m_passthrough = nodes::passthrough_visualizer::create();
+		m_passthrough->init(m_device, lewitt::present_target::from_context(
+		                                  m_swapChain, m_swapChainFormat, m_framebufferExtent));
+		m_passthrough->set_input(nodes::passthrough_visualizer::input_port::source,
+														 m_passthroughInputs);
+		m_passthrough->set_mode(nodes::passthrough_mode::position);
+		return outputs.position.id != render_targets::invalid_target_id;
 	}
 
-	void app_runner::terminateDepthBuffer()
+	void app_runner::terminateGbufferPipeline()
 	{
-		m_depthTextureView.release();
-		m_depthTexture.destroy();
-		m_depthTexture.release();
+		m_gbufferPass.pool().clear();
+		m_passthroughInputs.source.id = render_targets::invalid_target_id;
+		m_passthrough.reset();
 	}
 
 	std::tuple<vec3, vec3, vec3, float> rand_line()
@@ -403,10 +481,11 @@ namespace lewitt
 		lewitt::logger::geometry::get_instance().debugLines->set_texture_format(m_swapChainFormat, m_depthTextureFormat);
 		_render_scene->renderables.push_back(lewitt::logger::geometry::get_instance().debugLines);
 
+		if (_init_callback && !_init_callback())
+			return false;
+
 		_render_scene->init_camera(m_window, m_device);
 		_render_scene->init_lighting(m_device);
-
-		logRandLines(100);
 
 		return true;
 	}
@@ -420,7 +499,12 @@ namespace lewitt
 
 		// Setup Platform/Rendeonrer backends
 		ImGui_ImplGlfw_InitForOther(m_window, true);
-		ImGui_ImplWGPU_Init(m_device, 3, m_swapChainFormat, m_depthTextureFormat);
+		// Project-style rendering draws ImGui into a color-only swapchain pass.
+		wgpu::TextureFormat imgui_depth = m_depthTextureFormat;
+		if (m_projectBuilder) {
+			imgui_depth = wgpu::TextureFormat::Undefined;
+		}
+		ImGui_ImplWGPU_Init(m_device, 3, m_swapChainFormat, imgui_depth);
 		return true;
 	}
 
@@ -459,6 +543,20 @@ namespace lewitt
 		ImGui::Render();
 		// Execute the low-level drawing commands on the WebGPU backend
 		ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), renderPass);
+	}
+
+	gpu_context app_runner::make_gpu_context() const
+	{
+		gpu_context ctx{};
+		ctx.window = m_window;
+		ctx.device = m_device;
+		ctx.queue = m_queue;
+		ctx.swapchain = m_swapChain;
+		ctx.swapchain_format = m_swapChainFormat;
+		ctx.depth_format = m_depthTextureFormat;
+		ctx.extent = m_framebufferExtent;
+		ctx.scene = _render_scene;
+		return ctx;
 	}
 
 }

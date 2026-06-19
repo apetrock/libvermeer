@@ -4,10 +4,10 @@
 #include <webgpu/webgpu.hpp>
 #include "resources.hpp"
 
-#include "bindings.hpp"
 #include "vertex_formats.hpp"
 #include "shaders.hpp"
 #include "buffers.hpp"
+#include "bindings.hpp"
 #include "buffer_flags.h"
 // there will have to be scene uniforms and buffer uniforms,
 // I think we can seperate all of those out.
@@ -191,6 +191,61 @@ namespace lewitt
       buffers::buffer::ptr vertex_buffer = nullptr;
       buffers::buffer::ptr index_buffer = nullptr;
       uint32_t _instance_count = 1;
+    };
+
+    // Forward-lit path: single color target, existing snapshot shader.
+    class forward_renderable : public renderable {
+    public:
+      using ptr = std::shared_ptr<forward_renderable>;
+    };
+
+    // G-buffer path: position MRT output via gaudi_gbuffer.wgsl.
+    class g_buffer_renderable : public renderable {
+    public:
+      using ptr = std::shared_ptr<g_buffer_renderable>;
+
+      void prep_layout_once() {
+        if (!_layout_prepared) {
+          prep_shader_vertex_format();
+          _layout_prepared = true;
+        }
+      }
+
+      void draw(wgpu::RenderPassEncoder renderpass, wgpu::Device device) override {
+        prep_layout_once();
+        init_gbuffer_pipeline(device);
+        renderpass.setPipeline(_shader->render_pipe_line());
+        renderpass.setVertexBuffer(0, vertex_buffer->get_buffer(), 0,
+                                   vertex_buffer->get_buffer().getSize());
+        for (int i = 0; i < _attribute_buffers.size(); i++) {
+          renderpass.setVertexBuffer(i + 1, _attribute_buffers[i]->get_buffer(), 0,
+                                     _attribute_buffers[i]->get_buffer().getSize());
+        }
+        renderpass.setBindGroup(0, _bindings->get_group(), 0, nullptr);
+        if (index_buffer) {
+          renderpass.setIndexBuffer(index_buffer->get_buffer(), wgpu::IndexFormat::Uint32, 0,
+                                    index_buffer->size());
+          renderpass.drawIndexed(index_buffer->count(), _instance_count, 0, 0, 0);
+        } else {
+          renderpass.draw(vertex_buffer->count(), 1, 0, 0);
+        }
+      }
+
+    protected:
+      void init_gbuffer_pipeline(wgpu::Device device) {
+        if (_inited) {
+          return;
+        }
+        _bindings->init_layout(device);
+        _bindings->init(device);
+        if (texture_format_defined()) {
+          _shader->init(device, _bindings->get_layout(), _color_format, _depth_format,
+                        "vs_gbuffer", "fs_gbuffer");
+        }
+        _inited = true;
+      }
+
+      bool _layout_prepared = false;
     };
 
     class computable : public doable

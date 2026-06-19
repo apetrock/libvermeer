@@ -14,7 +14,7 @@ namespace lewitt
     struct member
     {
       using type = T;
-      static constexpr char *name = NAME;
+      static constexpr const char *name = NAME;
     };
 
     class structish

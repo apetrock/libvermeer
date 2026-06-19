@@ -311,6 +311,50 @@ namespace lewitt
       wgpu::TextureView _texture_view = nullptr;
     };
 
+    // Non-owning view for render targets produced by another pass.
+    class borrowed_texture_view : public binding
+    {
+    public:
+      DEFINE_CREATE_FUNC(borrowed_texture_view);
+
+      void set_view(wgpu::TextureView view) { _view = view; }
+
+      bool valid() override { return _view != nullptr; }
+
+      void set_frag_float_2d()
+      {
+        set_visibility(wgpu::ShaderStage::Fragment);
+        _sample_type = wgpu::TextureSampleType::Float;
+        _dim = wgpu::TextureViewDimension::_2D;
+      }
+
+      void set_frag_unfilterable_float_2d()
+      {
+        set_visibility(wgpu::ShaderStage::Fragment);
+        _sample_type = wgpu::TextureSampleType::UnfilterableFloat;
+        _dim = wgpu::TextureViewDimension::_2D;
+      }
+
+      void add_to_layout(std::vector<wgpu::BindGroupLayoutEntry> &entries) override
+      {
+        wgpu::BindGroupLayoutEntry &textBindingLayout = entries[_id];
+        textBindingLayout.binding = _id;
+        textBindingLayout.visibility = _visibility;
+        textBindingLayout.texture.sampleType = _sample_type;
+        textBindingLayout.texture.viewDimension = _dim;
+      }
+
+      void add_to_group(std::vector<wgpu::BindGroupEntry> &bindings) override
+      {
+        binding::add_to_group(bindings);
+        bindings[_id].textureView = _view;
+      }
+
+      WGPUTextureViewDimension _dim = wgpu::TextureViewDimension::_2D;
+      WGPUTextureSampleType _sample_type = wgpu::TextureSampleType::Float;
+      wgpu::TextureView _view = nullptr;
+    };
+
     class storage_texture : public texture
     {
     public:
@@ -420,6 +464,27 @@ namespace lewitt
       return sampler_binding;
     }
 
+    inline sampler::ptr default_nearest_sampler(const wgpu::ShaderStage &stage, wgpu::Device &device)
+    {
+      wgpu::SamplerDescriptor samplerDesc;
+      samplerDesc.addressModeU = wgpu::AddressMode::ClampToEdge;
+      samplerDesc.addressModeV = wgpu::AddressMode::ClampToEdge;
+      samplerDesc.addressModeW = wgpu::AddressMode::ClampToEdge;
+      samplerDesc.magFilter = wgpu::FilterMode::Nearest;
+      samplerDesc.minFilter = wgpu::FilterMode::Nearest;
+      samplerDesc.mipmapFilter = wgpu::MipmapFilterMode::Nearest;
+      samplerDesc.lodMinClamp = 0.0f;
+      samplerDesc.lodMaxClamp = 1.0f;
+      samplerDesc.compare = wgpu::CompareFunction::Undefined;
+      samplerDesc.maxAnisotropy = 1;
+
+      lewitt::bindings::sampler::ptr sampler_binding =
+          lewitt::bindings::sampler::create(samplerDesc, device);
+      sampler_binding->set_type(wgpu::SamplerBindingType::NonFiltering);
+      sampler_binding->set_visibility(stage);
+      return sampler_binding;
+    }
+
     class group
     {
     public:
@@ -490,13 +555,13 @@ namespace lewitt
 
       bool init(wgpu::Device &device)
       {
-        std::vector<wgpu::BindGroupEntry> bindings(_bindings.size());
+        std::vector<wgpu::BindGroupEntry> bindings(_bindings.size(), wgpu::Default);
         for (int i = 0; i < _bindings.size(); i++)
         {
           _bindings[i]->add_to_group(bindings);
         }
 
-        wgpu::BindGroupDescriptor bindGroupDesc;
+        wgpu::BindGroupDescriptor bindGroupDesc{};
         bindGroupDesc.layout = _layout;
         bindGroupDesc.entryCount = (uint32_t)bindings.size();
         bindGroupDesc.entries = bindings.data();

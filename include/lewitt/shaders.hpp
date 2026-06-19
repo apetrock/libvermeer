@@ -322,13 +322,18 @@ namespace lewitt
 
         wgpu::BlendState blendState = basic_blend_state();
         wgpu::ColorTargetState colorTarget = basic_color_target(color_format, blendState);
-        wgpu::DepthStencilState depthStencilState = basic_depth_stencil_state(depth_format);
+        wgpu::DepthStencilState depthStencilState{};
+        const wgpu::DepthStencilState *depth_stencil = nullptr;
+        if (depth_format != wgpu::TextureFormat::Undefined) {
+          depthStencilState = basic_depth_stencil_state(depth_format);
+          depth_stencil = &depthStencilState;
+        }
 
         wgpu::FragmentState fragmentState = basic_fragment_state(fragment_entry.c_str(), this->shaderModule);
         fragmentState.targets = &colorTarget;
 
         pipelineDesc.fragment = &fragmentState;
-        pipelineDesc.depthStencil = &depthStencilState;
+        pipelineDesc.depthStencil = depth_stencil;
 
         pipelineDesc.multisample.count = 1;
         pipelineDesc.multisample.mask = ~0u;
@@ -347,6 +352,62 @@ namespace lewitt
         return m_pipeline != nullptr;
       }
 
+      virtual bool
+      init(wgpu::Device device,
+           wgpu::BindGroupLayout bind_group_layout,
+           const std::vector<wgpu::TextureFormat> &color_formats,
+           wgpu::TextureFormat depth_format,
+           std::string vertex_entry = "vs_main",
+           std::string fragment_entry = "fs_main")
+      {
+        if (color_formats.empty()) {
+          return false;
+        }
+
+        std::cout << "Creating multi-target render pipeline..." << std::endl;
+        wgpu::RenderPipelineDescriptor pipelineDesc;
+
+        pipelineDesc.vertex =
+            basic_vertex_state(vertex_entry.c_str(), this->shaderModule, _layouts.size());
+        pipelineDesc.vertex.buffers = _layouts.data();
+        pipelineDesc.primitive = basic_primitive_state(wgpu::PrimitiveTopology::TriangleList,
+                                                       wgpu::IndexFormat::Undefined);
+
+        wgpu::BlendState blendState = basic_blend_state();
+        std::vector<wgpu::ColorTargetState> color_targets;
+        color_targets.reserve(color_formats.size());
+        for (const auto format : color_formats) {
+          color_targets.push_back(basic_color_target(format, blendState));
+        }
+
+        wgpu::DepthStencilState depthStencilState{};
+        const wgpu::DepthStencilState *depth_stencil = nullptr;
+        if (depth_format != wgpu::TextureFormat::Undefined) {
+          depthStencilState = basic_depth_stencil_state(depth_format);
+          depth_stencil = &depthStencilState;
+        }
+        wgpu::FragmentState fragmentState =
+            basic_fragment_state(fragment_entry.c_str(), this->shaderModule);
+        fragmentState.targetCount = static_cast<uint32_t>(color_targets.size());
+        fragmentState.targets = color_targets.data();
+
+        pipelineDesc.fragment = &fragmentState;
+        pipelineDesc.depthStencil = depth_stencil;
+
+        pipelineDesc.multisample.count = 1;
+        pipelineDesc.multisample.mask = ~0u;
+        pipelineDesc.multisample.alphaToCoverageEnabled = false;
+
+        wgpu::PipelineLayoutDescriptor layoutDesc{};
+        layoutDesc.bindGroupLayoutCount = 1;
+        layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout *)&bind_group_layout;
+        wgpu::PipelineLayout layout = device.createPipelineLayout(layoutDesc);
+        pipelineDesc.layout = layout;
+
+        m_pipeline = device.createRenderPipeline(pipelineDesc);
+        return m_pipeline != nullptr;
+      }
+
       virtual wgpu::RenderPipeline render_pipe_line() { return m_pipeline; }
       // wgpu::BindGroupLayout m_bindGroupLayout = nullptr;
       //  Bind Group
@@ -356,7 +417,7 @@ namespace lewitt
     };
 
 
-  class compute_shader : public shaders::shader { 
+  class compute_shader : public shaders::shader {
     public:
     using ptr = std::shared_ptr<compute_shader>;
     

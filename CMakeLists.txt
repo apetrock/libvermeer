@@ -1,17 +1,20 @@
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.16)
 project(
   vermeer # vermeer was Dutch Baroque painter who may have used a camera obscura...
   VERSION 0.1.0 # any version number
   LANGUAGES CXX C # programming languages used by the project
 )
 
+option(VERMEER_AS_SUBPROJECT "Build as a consumable library for a parent project" OFF)
+option(VERMEER_BUILD_DEMOS "Build Vermeer demo executables" ON)
+
 # Set C++ standard to C++20
-set(
-  CMAKE_CXX_STANDARD 20
-  CMAKE_CXX_STANDARD_REQUIRED ON
-  CXX_EXTENSIONS OFF
-  COMPILE_WARNING_AS_ERROR ON
-)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+if(VERMEER_STANDALONE_WARNINGS)
+  set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
+endif()
 
 
 
@@ -46,9 +49,10 @@ if(CMAKE_BUILD_TYPE STREQUAL "ASAN")
   message("Set ASAN_SYMBOLIZER_PATH to: ${ASAN_SYMBOLIZER_PATH}")
 endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmodules-ts")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer -fsanitize=undefined")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmodule-mapper=${CMAKE_CURRENT_SOURCE_DIR}/modules/vermeer_module_map.txt")
+if(NOT VERMEER_AS_SUBPROJECT)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmodules-ts")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmodule-mapper=${CMAKE_CURRENT_SOURCE_DIR}/modules/vermeer_module_map.txt")
+endif()
 
 
 #add_subdirectory(modules)
@@ -90,9 +94,13 @@ endif()
 #include(modules/load_modules.cmake)
 
 file(GLOB LEWITT_SOURCES "${CMAKE_SOURCE_DIR}/src/lewitt/*.cpp")
-#add_subdirectory(projects/hello_world)
-add_subdirectory(projects/hello_webgpu_render)
-add_subdirectory(projects/hello_webgpu_compute)
-add_subdirectory(projects/aabb_test)
-add_subdirectory(projects/lewitt)
-add_subdirectory(projects/app_test)
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/vermeer_library.cmake")
+
+if(VERMEER_BUILD_DEMOS AND NOT VERMEER_AS_SUBPROJECT)
+  add_subdirectory(projects/hello_webgpu_render)
+  add_subdirectory(projects/hello_webgpu_compute)
+  add_subdirectory(projects/aabb_test)
+  add_subdirectory(projects/lewitt)
+  add_subdirectory(projects/app_test)
+endif()

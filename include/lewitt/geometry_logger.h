@@ -90,12 +90,28 @@ namespace lewitt
         _color.clear();
       }
 
-      void add_line(const vec3x2 &line, const vec3 color = vec3(1.0, 0.0, 0.0), const float r = 1.0)
+      struct exported_line {
+        vec3 p0;
+        vec3 p1;
+        vec3 color;
+        float radius;
+      };
+
+      void add_line(const vec3x2 &line, const vec3 color = vec3(1.0, 0.0, 0.0), const float r = 0.01)
       {
         _p0.push_back(line[0]);
         _p1.push_back(line[1]);
         _r.push_back(r);
         _color.push_back(color);
+      }
+
+      std::vector<exported_line> exported_lines() const {
+        std::vector<exported_line> lines;
+        lines.reserve(_p0.size());
+        for (size_t i = 0; i < _p0.size(); ++i) {
+          lines.push_back({_p0[i], _p1[i], _color[i], _r[i]});
+        }
+        return lines;
       }
 
       void prep_buffers(wgpu::Device device)

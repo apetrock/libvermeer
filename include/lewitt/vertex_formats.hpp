@@ -4,7 +4,6 @@
 #include "common.h"
 #include <webgpu/webgpu.hpp>
 #include "resources.hpp"
-#include "bindings.hpp"
 // there will have to be scene uniforms and buffer uniforms,
 // I think we can seperate all of those out.
 namespace lewitt

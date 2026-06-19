@@ -92,6 +92,16 @@ namespace lewitt
       }
     }
 
+    void bind_camera(const lewitt::doables::doable::ptr &renderable) {
+      if (renderable && _camera_uniform_binding) {
+        renderable->get_bindings()->assign(_u_camera_id, _camera_uniform_binding);
+      }
+    }
+
+    lewitt::bindings::uniform::ptr camera_uniform_binding() const {
+      return _camera_uniform_binding;
+    }
+
     void update()
     {
       _camera_uniform_binding->set_member("time", static_cast<float>(glfwGetTime()));

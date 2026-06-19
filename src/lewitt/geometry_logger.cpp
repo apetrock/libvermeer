@@ -32,14 +32,14 @@ namespace lewitt
       return logger;
     }
 
-    void geometry::point(const vec3 &p0, const vec3 &color, const float & r = 0.1)
+    void geometry::point(const vec3 &p0, const vec3 &color, const float & r = 0.025)
     {
       geometry &logger = geometry::get_instance();
       logger.debugLines->add_line({p0,p0}, color, r);
     }
 
     void geometry::line(const vec3x2 &line,
-                        const vec3 &color, const float & r = 0.1)
+                        const vec3 &color, const float & r = 0.01)
     {
       geometry &logger = geometry::get_instance();
       logger.debugLines->add_line(line, color, r);
