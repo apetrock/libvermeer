@@ -41,7 +41,6 @@ namespace lewitt
 
     bool init_lighting(wgpu::Device device)
     {
-      std::cout << "init lighting" << std::endl;
       using vec4x2 = std::array<vec4, 2>;
 
       _lighting_uniform_binding =
@@ -100,6 +99,10 @@ namespace lewitt
 
     lewitt::bindings::uniform::ptr camera_uniform_binding() const {
       return _camera_uniform_binding;
+    }
+
+    lewitt::bindings::uniform::ptr lighting_uniform_binding() const {
+      return _lighting_uniform_binding;
     }
 
     void update()

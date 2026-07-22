@@ -9,6 +9,7 @@
 
 #include "lewitt/buffer_flags.h"
 #include "lewitt/buffers.hpp"
+#include "lewitt/performance.hpp"
 #include "lewitt/vertex_formats.hpp"
 
 namespace lewitt {
@@ -37,6 +38,7 @@ public:
 
   void set_data(const std::vector<vertex> &vertices,
                 const std::vector<uint32_t> &indices, wgpu::Device device) {
+    LEWITT_PERF_SCOPE_PATH("lewitt::mesh_buffer::set_data");
     if (vertices.empty() || indices.empty()) {
       _valid = false;
       _index_count = 0;

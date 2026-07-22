@@ -34,12 +34,15 @@ fn vs_gbuffer(in: VertexInput) -> GBufferVertexOutput {
   return out;
 }
 
-@fragment
-fn fs_position(in: GBufferVertexOutput) -> @location(0) vec4f {
-  return vec4f(in.viewPosition, 1.0);
-}
+struct GBufferFragmentOutput {
+  @location(0) position: vec4f,
+  @location(1) normal: vec4f,
+};
 
 @fragment
-fn fs_normal(in: GBufferVertexOutput) -> @location(0) vec4f {
-  return vec4f(normalize(in.viewNormal), 1.0);
+fn fs_gbuffer(in: GBufferVertexOutput) -> GBufferFragmentOutput {
+  var out: GBufferFragmentOutput;
+  out.position = vec4f(in.viewPosition, 1.0);
+  out.normal = vec4f(normalize(in.viewNormal), 1.0);
+  return out;
 }

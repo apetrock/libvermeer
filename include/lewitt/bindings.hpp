@@ -317,7 +317,15 @@ namespace lewitt
     public:
       DEFINE_CREATE_FUNC(borrowed_texture_view);
 
-      void set_view(wgpu::TextureView view) { _view = view; }
+      bool set_view(wgpu::TextureView view) {
+        WGPUTextureView raw_view = view;
+        if (_raw_view == raw_view) {
+          return false;
+        }
+        _view = view;
+        _raw_view = raw_view;
+        return true;
+      }
 
       bool valid() override { return _view != nullptr; }
 
@@ -353,6 +361,7 @@ namespace lewitt
       WGPUTextureViewDimension _dim = wgpu::TextureViewDimension::_2D;
       WGPUTextureSampleType _sample_type = wgpu::TextureSampleType::Float;
       wgpu::TextureView _view = nullptr;
+      WGPUTextureView _raw_view = nullptr;
     };
 
     class storage_texture : public texture
@@ -513,6 +522,7 @@ namespace lewitt
       int append(const binding::ptr &binding)
       {
         _bindings.push_back(binding);
+        _dirty = true;
         return _bindings.size() - 1;
       }
 
@@ -522,6 +532,7 @@ namespace lewitt
           _bindings.resize(i + 1, nullptr);
         
         _bindings[i] = binding;
+        _dirty = true;
         return i;
       }
       
@@ -534,11 +545,21 @@ namespace lewitt
           _bindings.resize(i + 1, nullptr);
         
         _bindings[i] = binding;
+        _dirty = true;
         return i;
       }
 
+      void mark_dirty() { _dirty = true; }
+
       bool init_layout(wgpu::Device &device)
       {
+        if (_layout && !_layout_dirty) {
+          return true;
+        }
+        if (_layout) {
+          _layout.release();
+          _layout = nullptr;
+        }
         std::vector<wgpu::BindGroupLayoutEntry> bindingLayoutEntries(_bindings.size(), wgpu::Default);
         for (int i = 0; i < _bindings.size(); i++)
         {
@@ -549,12 +570,28 @@ namespace lewitt
         bindGroupLayoutDesc.entryCount = (uint32_t)bindingLayoutEntries.size();
         bindGroupLayoutDesc.entries = bindingLayoutEntries.data();
         _layout = device.createBindGroupLayout(bindGroupLayoutDesc);
+        _layout_dirty = false;
+        _dirty = true;
 
         return _layout != nullptr;
       }
 
       bool init(wgpu::Device &device)
       {
+        if (_group && !_dirty) {
+          return true;
+        }
+        for (const auto &binding : _bindings) {
+          if (!binding) {
+            continue;
+          }
+          if (auto borrowed = std::dynamic_pointer_cast<borrowed_texture_view>(binding)) {
+            if (!borrowed->valid()) {
+              return false;
+            }
+          }
+        }
+
         std::vector<wgpu::BindGroupEntry> bindings(_bindings.size(), wgpu::Default);
         for (int i = 0; i < _bindings.size(); i++)
         {
@@ -565,7 +602,12 @@ namespace lewitt
         bindGroupDesc.layout = _layout;
         bindGroupDesc.entryCount = (uint32_t)bindings.size();
         bindGroupDesc.entries = bindings.data();
+        if (_group) {
+          _group.release();
+          _group = nullptr;
+        }
         _group = device.createBindGroup(bindGroupDesc);
+        _dirty = false;
 
         return _group != nullptr;
       }
@@ -583,6 +625,8 @@ namespace lewitt
       wgpu::BindGroup _group = nullptr;
       wgpu::BindGroupLayout _layout = nullptr;
       std::vector<binding::ptr> _bindings;
+      bool _dirty = true;
+      bool _layout_dirty = true;
     };
   }
 }

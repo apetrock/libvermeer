@@ -30,16 +30,13 @@ fn vs_gbuffer(in: VertexInput) -> GBufferVertexOutput {
   var out: GBufferVertexOutput;
 
   var pos = in.position;
-  let dp = normalize(in.p1 - in.p0);
-  let Z = vec3f(0.0, 1.001, 0.0);
-  let m0 = dp;
-  let m1 = normalize(cross(m0, Z));
+  let dp = in.p1 - in.p0;
+  let m0 = normalize(dp);
+  let up = vec3f(0.0, 1.0, 0.0);
+  let ref_axis = select(up, vec3f(1.0, 0.0, 0.0), abs(dot(m0, up)) > 0.99);
+  let m1 = normalize(cross(m0, ref_axis));
   let m2 = normalize(cross(m0, m1));
-  let M = mat3x3f(
-    m1[0], m1[1], m1[2],
-    m2[0], m2[1], m2[2],
-    m0[0], m0[1], m0[2],
-  );
+  let M = mat3x3f(m1, m2, m0);
 
   pos = M * in.radius * pos;
   let N = M * in.normal;
@@ -61,12 +58,15 @@ fn vs_gbuffer(in: VertexInput) -> GBufferVertexOutput {
   return out;
 }
 
-@fragment
-fn fs_position(in: GBufferVertexOutput) -> @location(0) vec4f {
-  return vec4f(in.viewPosition, 1.0);
-}
+struct GBufferFragmentOutput {
+  @location(0) position: vec4f,
+  @location(1) normal: vec4f,
+};
 
 @fragment
-fn fs_normal(in: GBufferVertexOutput) -> @location(0) vec4f {
-  return vec4f(normalize(in.viewNormal), 1.0);
+fn fs_gbuffer(in: GBufferVertexOutput) -> GBufferFragmentOutput {
+  var out: GBufferFragmentOutput;
+  out.position = vec4f(in.viewPosition, 1.0);
+  out.normal = vec4f(normalize(in.viewNormal), 1.0);
+  return out;
 }

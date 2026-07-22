@@ -157,7 +157,6 @@ namespace lewitt
 
       size_t N = sizeof...(Types);
       std::vector<wgpu::VertexAttribute> vertexAttribs(N);
-      std::cout << N << std::endl;
       std::vector<size_t> sizes = {sizeof(Types)...};
       std::vector<wgpu::VertexFormat> formats = {type_alias<Types>()...};
       std::size_t offset = 0;

@@ -27,7 +27,6 @@ namespace lewitt
       virtual bool init(wgpu::Device &device,
                         wgpu::BindGroupLayout &bind_group_layout)
       {
-        std::cout << "base compute init" << std::endl;
         return false;
       }
 
@@ -38,7 +37,6 @@ namespace lewitt
                         std::string vertex_entry = "vs_main",
                         std::string fragment_entry = "fs_main")
       {
-        std::cout << "base render init" << std::endl;
 
         return false;
       }
@@ -77,12 +75,14 @@ namespace lewitt
       return colorTarget;
     }
 
-    inline wgpu::DepthStencilState basic_depth_stencil_state(wgpu::TextureFormat depth_format)
+    inline wgpu::DepthStencilState basic_depth_stencil_state(
+        wgpu::TextureFormat depth_format, bool depth_write_enabled = true,
+        wgpu::CompareFunction depth_compare = wgpu::CompareFunction::Less)
     {
 
       wgpu::DepthStencilState depthStencilState = wgpu::Default;
-      depthStencilState.depthCompare = wgpu::CompareFunction::Less;
-      depthStencilState.depthWriteEnabled = true;
+      depthStencilState.depthCompare = depth_compare;
+      depthStencilState.depthWriteEnabled = depth_write_enabled;
       depthStencilState.format = depth_format;
       depthStencilState.stencilReadMask = 0;
       depthStencilState.stencilWriteMask = 0;
@@ -133,7 +133,6 @@ namespace lewitt
       DEFINE_CREATE_FUNC(PN)
       PN(wgpu::Device &device)
       {
-        std::cout << "Creating shader module..." << std::endl;
         this->shaderModule = resources::load_shader_module(RESOURCE_DIR "/pnc.wgsl", device);
       }
       ~PN()
@@ -148,20 +147,17 @@ namespace lewitt
            wgpu::TextureFormat color_format,
            wgpu::TextureFormat depth_format,
            std::string vertex_entry = "vs_main",
-           std::string fragment_entry = "fs_main")
+           std::string fragment_entry = "fs_main",
+           bool depth_write_enabled = true,
+           wgpu::CompareFunction depth_compare = wgpu::CompareFunction::Less)
       {
 
-        std::cout << "Creating render pipeline..." << std::endl;
         wgpu::RenderPipelineDescriptor pipelineDesc;
         std::vector<wgpu::VertexAttribute> vertex_format_t = vertex_formats::PN_attrib();
         wgpu::VertexBufferLayout vertexBufferLayout_t = vertex_formats::create_vertex_layout<vertex_formats::PN_t>(vertex_format_t);
         auto [vertex_format, vertexBufferLayout] = vertex_formats::create_PN_vertex_layout(wgpu::VertexStepMode::Vertex);
-        std::cout << vertex_format.size() << " " << vertex_format_t.size() << std::endl;
         for (int i = 0; i < vertex_format.size(); i++)
         {
-          std::cout << vertex_format[i].shaderLocation << " " << vertex_format_t[i].shaderLocation << std::endl;
-          std::cout << vertex_format[i].format << " " << vertex_format_t[i].format << std::endl;
-          std::cout << vertex_format[i].offset << " " << vertex_format_t[i].offset << std::endl;
         }
         pipelineDesc.vertex = basic_vertex_state("vs_main", this->shaderModule);
         pipelineDesc.vertex.buffers = &vertexBufferLayout;
@@ -191,7 +187,6 @@ namespace lewitt
         pipelineDesc.layout = layout;
 
         m_pipeline = device.createRenderPipeline(pipelineDesc);
-        std::cout << "Render pipeline: " << m_pipeline << std::endl;
 
         return m_pipeline != nullptr;
       }
@@ -210,7 +205,6 @@ namespace lewitt
       DEFINE_CREATE_FUNC(PNCUVTB)
       PNCUVTB(wgpu::Device &device)
       {
-        std::cout << "Creating shader module..." << std::endl;
         this->shaderModule = resources::load_shader_module(RESOURCE_DIR "/pncuvtb.wgsl", device);
       }
       ~PNCUVTB()
@@ -225,10 +219,10 @@ namespace lewitt
            wgpu::TextureFormat color_format,
            wgpu::TextureFormat depth_format,
            std::string vertex_entry = "vs_main",
-           std::string fragment_entry = "fs_main")
+           std::string fragment_entry = "fs_main",
+           bool depth_write_enabled = true)
       {
 
-        std::cout << "Creating render pipeline..." << std::endl;
         wgpu::RenderPipelineDescriptor pipelineDesc;
         std::vector<wgpu::VertexAttribute> vertex_format = vertex_formats::PNCUVTB_attrib();
         wgpu::VertexBufferLayout vertexBufferLayout = vertex_formats::create_vertex_layout<vertex_formats::PNCUVTB_t>(vertex_format);
@@ -261,7 +255,6 @@ namespace lewitt
         pipelineDesc.layout = layout;
 
         m_pipeline = device.createRenderPipeline(pipelineDesc);
-        std::cout << "Render pipeline: " << m_pipeline << std::endl;
 
         return m_pipeline != nullptr;
       }
@@ -302,21 +295,29 @@ namespace lewitt
           m_pipeline.release();
       }
 
+      bool init(wgpu::Device device, wgpu::BindGroupLayout bind_group_layout,
+                wgpu::TextureFormat color_format, wgpu::TextureFormat depth_format,
+                std::string vertex_entry = "vs_main",
+                std::string fragment_entry = "fs_main") override {
+        return init(device, bind_group_layout, color_format, depth_format, vertex_entry,
+                    fragment_entry, true, wgpu::CompareFunction::Less);
+      }
+
       virtual bool
       init(wgpu::Device device,
            wgpu::BindGroupLayout bind_group_layout,
            wgpu::TextureFormat color_format,
            wgpu::TextureFormat depth_format,
            std::string vertex_entry = "vs_main",
-           std::string fragment_entry = "fs_main")
+           std::string fragment_entry = "fs_main",
+           bool depth_write_enabled = true,
+           wgpu::CompareFunction depth_compare = wgpu::CompareFunction::Less)
       {
 
-        std::cout << "Creating render pipeline..." << std::endl;
         wgpu::RenderPipelineDescriptor pipelineDesc;
 
         pipelineDesc.vertex = basic_vertex_state(vertex_entry.c_str(), this->shaderModule, _layouts.size());
         pipelineDesc.vertex.buffers = _layouts.data();
-        std::cout << "layouts: " << _layouts.size() << std::endl;
         pipelineDesc.primitive = basic_primitive_state(wgpu::PrimitiveTopology::TriangleList,
                                                        wgpu::IndexFormat::Undefined);
 
@@ -325,7 +326,8 @@ namespace lewitt
         wgpu::DepthStencilState depthStencilState{};
         const wgpu::DepthStencilState *depth_stencil = nullptr;
         if (depth_format != wgpu::TextureFormat::Undefined) {
-          depthStencilState = basic_depth_stencil_state(depth_format);
+          depthStencilState =
+              basic_depth_stencil_state(depth_format, depth_write_enabled, depth_compare);
           depth_stencil = &depthStencilState;
         }
 
@@ -347,7 +349,6 @@ namespace lewitt
         pipelineDesc.layout = layout;
 
         m_pipeline = device.createRenderPipeline(pipelineDesc);
-        std::cout << "Render pipeline: " << m_pipeline << std::endl;
 
         return m_pipeline != nullptr;
       }
@@ -358,13 +359,14 @@ namespace lewitt
            const std::vector<wgpu::TextureFormat> &color_formats,
            wgpu::TextureFormat depth_format,
            std::string vertex_entry = "vs_main",
-           std::string fragment_entry = "fs_main")
+           std::string fragment_entry = "fs_main",
+           bool depth_write_enabled = true,
+           wgpu::CompareFunction depth_compare = wgpu::CompareFunction::Less)
       {
         if (color_formats.empty()) {
           return false;
         }
 
-        std::cout << "Creating multi-target render pipeline..." << std::endl;
         wgpu::RenderPipelineDescriptor pipelineDesc;
 
         pipelineDesc.vertex =
@@ -383,7 +385,8 @@ namespace lewitt
         wgpu::DepthStencilState depthStencilState{};
         const wgpu::DepthStencilState *depth_stencil = nullptr;
         if (depth_format != wgpu::TextureFormat::Undefined) {
-          depthStencilState = basic_depth_stencil_state(depth_format);
+          depthStencilState =
+              basic_depth_stencil_state(depth_format, depth_write_enabled, depth_compare);
           depth_stencil = &depthStencilState;
         }
         wgpu::FragmentState fragmentState =
@@ -443,7 +446,6 @@ namespace lewitt
           wgpu::BindGroupLayout &bind_group_layout)
     {
       // Create compute pipeline layout
-      std::cout << "init compute pipeline" << std::endl;
       wgpu::PipelineLayoutDescriptor pipelineLayoutDesc;
       pipelineLayoutDesc.bindGroupLayoutCount = 1;
       pipelineLayoutDesc.bindGroupLayouts = (WGPUBindGroupLayout *)&bind_group_layout;

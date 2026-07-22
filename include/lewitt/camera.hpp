@@ -53,7 +53,6 @@ namespace lewitt
       // Update projection matrix
       using mat4 = lewitt::bindings::mat4;
 
-      std::cout << "update projection" << std::endl;
       int width, height;
       glfwGetFramebufferSize(_window, &width, &height);
       float ratio = width / (float)height;
@@ -70,7 +69,6 @@ namespace lewitt
     }
     mat4 get_view_matrix()
     {
-      std::cout << "update view matrix" << std::endl;
       vec3 position = get_position();
       return glm::lookAt(position, vec3(0.0f), vec3(0, 0, 1));
     }

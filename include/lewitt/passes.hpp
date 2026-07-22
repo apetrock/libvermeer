@@ -7,6 +7,7 @@
 
 #include <webgpu/webgpu.hpp>
 
+#include "lewitt/performance.hpp"
 #include "lewitt/render_targets.hpp"
 
 namespace lewitt
@@ -16,6 +17,7 @@ namespace lewitt
     inline render_targets::external_color_attachment
     swapchain_color_attachment(wgpu::SwapChain swapchain)
     {
+      LEWITT_PERF_SCOPE_PATH("lewitt::passes::swapchain_color_attachment");
       render_targets::external_color_attachment color{};
       color.view = swapchain.getCurrentTextureView();
       if (!color.view)
@@ -33,6 +35,7 @@ namespace lewitt
                        std::function<void(wgpu::RenderPassEncoder &, wgpu::Device &)> fcn,
                        bool present = true)
     {
+      LEWITT_PERF_SCOPE_PATH("lewitt::passes::render");
       render_targets::external_color_attachment color = attachments.color;
       if (!color.view && attachments.pooled_colors.empty())
       {
@@ -88,12 +91,22 @@ namespace lewitt
 
       renderPassDesc.timestampWriteCount = 0;
       renderPassDesc.timestampWrites = nullptr;
-      wgpu::RenderPassEncoder renderPass = encoder.beginRenderPass(renderPassDesc);
+      wgpu::RenderPassEncoder renderPass = nullptr;
+      {
+        LEWITT_PERF_SCOPE_PATH("lewitt::passes::render::beginRenderPass");
+        renderPass = encoder.beginRenderPass(renderPassDesc);
+      }
 
-      fcn(renderPass, device);
+      {
+        LEWITT_PERF_SCOPE_PATH("lewitt::passes::render::record_callback");
+        fcn(renderPass, device);
+      }
 
-      renderPass.end();
-      renderPass.release();
+      {
+        LEWITT_PERF_SCOPE_PATH("lewitt::passes::render::end_pass");
+        renderPass.end();
+        renderPass.release();
+      }
 
       if (color.release_view_after_pass && color.view)
       {
@@ -102,13 +115,21 @@ namespace lewitt
 
       wgpu::CommandBufferDescriptor cmdBufferDescriptor{};
       cmdBufferDescriptor.label = "Command buffer";
-      wgpu::CommandBuffer command = encoder.finish(cmdBufferDescriptor);
+      wgpu::CommandBuffer command = nullptr;
+      {
+        LEWITT_PERF_SCOPE_PATH("lewitt::passes::render::encoder_finish");
+        command = encoder.finish(cmdBufferDescriptor);
+      }
       encoder.release();
-      queue.submit(command);
+      {
+        LEWITT_PERF_SCOPE_PATH("lewitt::passes::render::queue_submit");
+        queue.submit(command);
+      }
       command.release();
 
       if (present && swapchain)
       {
+        LEWITT_PERF_SCOPE_PATH("lewitt::passes::render::swapchain_present");
         swapchain.present();
       }
     }

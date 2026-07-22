@@ -19,7 +19,8 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
   var out: VertexOutput;
   let pos = positions[vertex_index];
   out.position = vec4f(pos, 0.0, 1.0);
-  out.uv = pos * 0.5 + vec2f(0.5, 0.5);
+  let uv = pos * 0.5 + vec2f(0.5, 0.5);
+  out.uv = vec2f(uv.x, 1.0 - uv.y);
   return out;
 }
 
@@ -52,6 +53,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
   diffuseTerm *= attenuation;
   let specularTerm = specular * attenuation;
   lighting += diffuseTerm + specularTerm;
-
-  return vec4f(lighting * ambientOcclusion + 0.1 * ambient, 1.0);
+  //return vec4f(ambientOcclusion);
+  return ambientOcclusion * vec4f(lighting + 0.01 * ambient, 1.0);
 }

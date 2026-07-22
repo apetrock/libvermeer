@@ -147,7 +147,8 @@ color_attachment_desc(const char *label, wgpu::TextureFormat format) {
 inline render_targets::render_target_desc
 sampleable_color_attachment_desc(const char *label, wgpu::TextureFormat format) {
   render_targets::render_target_desc desc = color_attachment_desc(label, format);
-  desc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
+  desc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding |
+               wgpu::TextureUsage::CopySrc;
   return desc;
 }
 

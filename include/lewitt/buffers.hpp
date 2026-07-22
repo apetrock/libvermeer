@@ -6,6 +6,7 @@
 #include "vertex_formats.hpp"
 #include "buffer_flags.h"
 #include "passes.hpp"
+#include "performance.hpp"
 // there will have to be scene uniforms and buffer uniforms,
 // I think we can seperate all of those out.
 namespace lewitt
@@ -42,7 +43,6 @@ namespace lewitt
       {
         ptr n_buff = std::make_shared<buffer>();
         n_buff->set_usage(usage);
-        std::cout << "count: " << count << " elem_size: " << size << std::endl;
         n_buff->init(count, size, device);
         
         return n_buff;
@@ -101,6 +101,7 @@ namespace lewitt
       template <typename FORMAT>
       bool write(const std::vector<FORMAT> &vertexData, wgpu::Device &device)
       {
+        LEWITT_PERF_SCOPE_PATH("lewitt::buffers::buffer::write");
         _sizeof_format = sizeof(FORMAT);
 
         if (_vertexBuffer && _count < vertexData.size())

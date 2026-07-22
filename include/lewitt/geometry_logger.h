@@ -12,6 +12,8 @@
 #include "draw_primitives.hpp"
 
 #include <iostream>
+#include <mutex>
+#include <vector>
 
 namespace lewitt
 {
@@ -35,7 +37,6 @@ namespace lewitt
         if (_init)
           return;
 
-        std::cout << "init line" << std::endl;
         auto [vertices, normals, indices, flags] = lewitt::primitives::egg(64, 32, 0.5, 0.5, 0.0);
 
         lewitt::buffers::buffer::ptr vert_buffer =
@@ -66,7 +67,6 @@ namespace lewitt
 
       void init_instance_buffers(wgpu::Device device)
       {
-        std::cout << "init instance buffers" << std::endl;
         _p0_buffer = lewitt::buffers::buffer::create();
         _p1_buffer = lewitt::buffers::buffer::create();
         _color_buffer = lewitt::buffers::buffer::create();
@@ -157,6 +157,10 @@ namespace lewitt
       static void point(const vec3 & p, const vec3 &color, const float & r);
       static void line(const vec3x2 & line, const vec3 &color, const float & r);
       static void clear();
+      // Thread-safe copy of current lines (does not clear).
+      static std::vector<doables::lineable::exported_line> export_lines();
+      // Thread-safe move of current lines, then clear.
+      static std::vector<doables::lineable::exported_line> steal_lines();
       bool &initialized() { return instance_flag; }
       bool initialized() const { return instance_flag; }
 
@@ -173,6 +177,7 @@ namespace lewitt
 
       static geometry *global_instance;
       static bool instance_flag;
+      std::mutex _mutex;
     };
   };
 }

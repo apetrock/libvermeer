@@ -27,27 +27,34 @@ set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE}
     FORCE)
   
 
-if(CMAKE_BUILD_TYPE STREQUAL "ASAN")
-  include(cmake_modules/sanitizers.cmake)
-  # AddressSanitize
-  set(CMAKE_C_FLAGS_ASAN
-      "-fsanitize=address -fno-optimize-sibling-calls -fsanitize-address-use-after-scope -fno-omit-frame-pointer -g -O0"
-      CACHE STRING "Flags used by the C compiler during AddressSanitizer builds."
-      FORCE)
+string(TOUPPER "${CMAKE_BUILD_TYPE}" _VERMEER_BUILD_TYPE_UPPER)
+if(_VERMEER_BUILD_TYPE_UPPER STREQUAL "ASAN")
+  # AddressSanitizer (flags may already be set by a parent project such as libgaudi)
+  if(NOT CMAKE_CXX_FLAGS_ASAN)
+    set(CMAKE_C_FLAGS_ASAN
+        "-fsanitize=address,undefined,unsigned-integer-overflow -fno-sanitize-recover=undefined,unsigned-integer-overflow -fno-optimize-sibling-calls -fsanitize-address-use-after-scope -fno-omit-frame-pointer -g -O0"
+        CACHE STRING "Flags used by the C compiler during AddressSanitizer+UBSan builds."
+        FORCE)
+    set(CMAKE_CXX_FLAGS_ASAN
+        "-fsanitize=address,undefined,unsigned-integer-overflow -fno-sanitize-recover=undefined,unsigned-integer-overflow -fno-optimize-sibling-calls -fsanitize-address-use-after-scope -fno-omit-frame-pointer -g -O0"
+        CACHE STRING "Flags used by the C++ compiler during AddressSanitizer+UBSan builds."
+        FORCE)
+    set(CMAKE_EXE_LINKER_FLAGS_ASAN
+        "-fsanitize=address,undefined,unsigned-integer-overflow" CACHE STRING "" FORCE)
+    set(CMAKE_SHARED_LINKER_FLAGS_ASAN
+        "-fsanitize=address,undefined,unsigned-integer-overflow" CACHE STRING "" FORCE)
+    set(CMAKE_MODULE_LINKER_FLAGS_ASAN
+        "-fsanitize=address,undefined,unsigned-integer-overflow" CACHE STRING "" FORCE)
+  endif()
 
-  set(
-    ASAN_OPTIONS
-    symbolize=1
-  )
-  message("Set ASAN_OPTIONS to: ${ASAN_OPTIONS}")
+  set(ASAN_OPTIONS symbolize=1)
+  message(STATUS "Set ASAN_OPTIONS to: ${ASAN_OPTIONS}")
 
   find_program(LLVM_SYMB_PATH llvm-symbolizer)
-  set(
-    ASAN_SYMBOLIZER_PATH
-    ${LLVM_SYMB_PATH}
-  )
-  message("Set ASAN_SYMBOLIZER_PATH to: ${ASAN_SYMBOLIZER_PATH}")
+  set(ASAN_SYMBOLIZER_PATH ${LLVM_SYMB_PATH})
+  message(STATUS "Set ASAN_SYMBOLIZER_PATH to: ${ASAN_SYMBOLIZER_PATH}")
 endif()
+unset(_VERMEER_BUILD_TYPE_UPPER)
 
 if(NOT VERMEER_AS_SUBPROJECT)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmodules-ts")
@@ -65,6 +72,7 @@ add_subdirectory(ext/glfw3webgpu)
 add_subdirectory(ext/imgui)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include())
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../liblombardi/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ext())
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ext/glfw/include())
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ext/glfw3webgpu())
@@ -96,6 +104,11 @@ endif()
 file(GLOB LEWITT_SOURCES "${CMAKE_SOURCE_DIR}/src/lewitt/*.cpp")
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/vermeer_library.cmake")
+
+if(VERMEER_AS_SUBPROJECT)
+  enable_testing()
+  add_subdirectory(tests)
+endif()
 
 if(VERMEER_BUILD_DEMOS AND NOT VERMEER_AS_SUBPROJECT)
   add_subdirectory(projects/hello_webgpu_render)

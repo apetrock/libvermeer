@@ -7,7 +7,6 @@
  *
  */
 
-// #include <gl/glut.h>
 #include "lewitt/geometry_logger.h"
 
 namespace lewitt
@@ -32,23 +31,42 @@ namespace lewitt
       return logger;
     }
 
-    void geometry::point(const vec3 &p0, const vec3 &color, const float & r = 0.025)
+    void geometry::point(const vec3 &p0, const vec3 &color, const float & r)
     {
       geometry &logger = geometry::get_instance();
-      logger.debugLines->add_line({p0,p0}, color, r);
+      std::lock_guard<std::mutex> lock(logger._mutex);
+      logger.debugLines->add_line({p0, p0}, color, r);
     }
 
     void geometry::line(const vec3x2 &line,
-                        const vec3 &color, const float & r = 0.01)
+                        const vec3 &color, const float & r)
     {
       geometry &logger = geometry::get_instance();
+      std::lock_guard<std::mutex> lock(logger._mutex);
       logger.debugLines->add_line(line, color, r);
     }
 
     void geometry::clear()
     {
       geometry &logger = geometry::get_instance();
+      std::lock_guard<std::mutex> lock(logger._mutex);
       logger.debugLines->clear();
     }
-  } // namespace gg
-}
+
+    std::vector<doables::lineable::exported_line> geometry::export_lines()
+    {
+      geometry &logger = geometry::get_instance();
+      std::lock_guard<std::mutex> lock(logger._mutex);
+      return logger.debugLines->exported_lines();
+    }
+
+    std::vector<doables::lineable::exported_line> geometry::steal_lines()
+    {
+      geometry &logger = geometry::get_instance();
+      std::lock_guard<std::mutex> lock(logger._mutex);
+      auto lines = logger.debugLines->exported_lines();
+      logger.debugLines->clear();
+      return lines;
+    }
+  } // namespace logger
+} // namespace lewitt

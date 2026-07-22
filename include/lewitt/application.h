@@ -8,6 +8,7 @@
 #include <memory>
 #include "common.h"
 #include "doables.hpp"
+#include "forward_scene_pass.hpp"
 #include "gbuffer_pipeline.hpp"
 #include "gpu_session.hpp"
 #include "nodes.hpp"
@@ -42,6 +43,7 @@ public:
   wgpu::TextureFormat depth_format() const { return m_depthTextureFormat; }
   lewitt::render_scene::ptr render_scene() const { return _render_scene; }
   void add_gbuffer_renderable(lewitt::doables::g_buffer_renderable::ptr renderable);
+  GLFWwindow *window() const { return m_window; }
 
 	// A function called only once at the very end.
 	void onFinish();
@@ -68,9 +70,8 @@ private:
 	void terminateGbufferPipeline();
 
 	bool init_scenes();
-	bool initGui();																			// called in onInit
-	void terminateGui();																// called in onFinish
-	void updateGui(wgpu::RenderPassEncoder renderPass); // called in onFrame
+	bool initForwardPass();
+	void terminateForwardPass();
 	gpu_context make_gpu_context() const;
 
 private:
@@ -98,6 +99,7 @@ private:
 
 	// Depth / G-buffer pipeline
 	wgpu::TextureFormat m_depthTextureFormat = resources::depth_attachment::format();
+	pipeline::forward_scene_pass m_forwardPass;
 	pipeline::gbuffer_pass m_gbufferPass;
 	nodes::passthrough_visualizer::ptr m_passthrough;
 	resources::texture_input<resources::position_sampled> m_passthroughInputs;
@@ -108,14 +110,9 @@ private:
 	lewitt::render_scene::ptr _render_scene;
 	lewitt::compute_scene::ptr _compute_scene;
 
-  //function pointser for before compute, before render, imgui, etc
   std::function<bool()> _init_callback;
   std::function<void(uint)> _frame_callback;
   std::function<void(uint)> _before_render_callback;
-  std::function<void(int)> _init;
-  std::function<void(int)> _before_compute;
-  std::function<void(int)> _before_render;
-  std::function<void(wgpu::RenderPassEncoder)> _update_gui;
 
   };
 } // namespace lewitt

@@ -55,18 +55,15 @@ namespace lewitt
       std::string shader_src = op_shader(TYPE, OP, NAME);
       buffer::ptr out = buffer::create(A->count(), A->format_size(), device, flags::storage::write);
       bindings::group::ptr bindings = bindings::group::create();
-      std::cout << "a bind" << std::endl;
 
       bindings::buffer::ptr A_bind = bindings::buffer::create(A);
       A_bind->set_visibility(wgpu::ShaderStage::Compute);
       A_bind->set_binding_type(wgpu::BufferBindingType::ReadOnlyStorage);
-      std::cout << "b bind" << std::endl;
 
       bindings::buffer::ptr B_bind = bindings::buffer::create(B);
       B_bind->set_visibility(wgpu::ShaderStage::Compute);
       B_bind->set_binding_type(wgpu::BufferBindingType::ReadOnlyStorage);
 
-      std::cout << "c bind" << std::endl;
       bindings::buffer::ptr out_bind = bindings::buffer::create(out);
       out_bind->set_visibility(wgpu::ShaderStage::Compute);
       out_bind->set_binding_type(wgpu::BufferBindingType::Storage);
@@ -74,10 +71,7 @@ namespace lewitt
       bindings->assign(0, A_bind);
       bindings->assign(1, B_bind);
       bindings->assign(2, out_bind);
-      std::cout << "init layout" << std::endl;
       bool layout_successful = bindings->init_layout(device);
-      std::cout << "layout successful: " << layout_successful << std::endl;
-      std::cout << "init" << std::endl;
       bindings->init(device);
       // we'll create a compute context which will store the invocation count and a map of pipelines which can be
       // lazily initialized.
@@ -86,7 +80,6 @@ namespace lewitt
 
       buffer::ptr map_buff = buffer::create(out->count(), out->format_size(), device, flags::storage::map);
 
-      std::cout << "compute" << std::endl;
 
       passes::compute(device, [&](wgpu::ComputePassEncoder &compute_pass, wgpu::Device &device)
                       {
@@ -105,23 +98,16 @@ namespace lewitt
 
                         }
                         );
-      std::cout << "done!" << std::endl;
       bool done = false;
       auto handle = map_buff->get_buffer().mapAsync(wgpu::MapMode::Read, 0, map_buff->size(), [&](wgpu::BufferMapAsyncStatus status) {
         if (status == wgpu::BufferMapAsyncStatus::Success) {
           const vec3* output = (const vec3*)map_buff->get_buffer().getConstMappedRange(0, map_buff->size());
           for (int i = 0; i < map_buff->count(); ++i) {
-            std::cout << "out[0]["<<i<<"]: " << output[i][0] << " ";
           }
-          std::cout << std::endl;
           for (int i = 0; i < map_buff->count(); ++i) {
-            std::cout << "out[1]["<<i<<"]: " << output[i][1] << " ";
           }
-          std::cout << std::endl;
           for (int i = 0; i < map_buff->count(); ++i) {
-            std::cout << "out[2]["<<i<<"]: " << output[i][2] << " ";
           }
-          std::cout << std::endl;
 
           map_buff->get_buffer().unmap();
         }

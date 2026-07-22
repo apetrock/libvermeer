@@ -86,8 +86,6 @@ namespace lewitt
       int N = N_lat;
       if (phi0 < 1e-16)
       {
-        std::cout << vertices.size() << std::endl;
-        std::cout << "adding top vertex" << std::endl;
         int top_index = vertices.size();
 
         add_vertex(radius, 0, 0);
@@ -107,8 +105,6 @@ namespace lewitt
       }
       if (phi1 >= M_PI)
       {
-        std::cout << vertices.size() << std::endl;
-        std::cout << "adding bottom vertex" << std::endl;
         int bottom_index = vertices.size();
         add_vertex(radius, 0, M_PI);
         N = theta0 > 0 ? N_lat - 1 : N_lat;
@@ -155,9 +151,7 @@ namespace lewitt
       float theta2 = M_PI / 2 - atan(fabs(r0 - r1) / dp);
 
       auto [vertices0, normals0, indices0] = sphere(N_long / 2, N_lat, r0, 0.0, theta);
-      std::cout << "!!!!!!!!!!!egg egg vertices0: " << vertices0.size() << std::endl;
       auto [vertices1, normals1, indices1] = sphere(N_long / 2, N_lat, r1, theta, M_PI);
-      std::cout << "!!!!!!!!!!!egg egg vertices1: " << vertices1.size() << std::endl;
 
       int N_half = vertices0.size();
       std::transform(vertices0.begin(), vertices0.end(), vertices0.begin(), [&](const vec3 &v)

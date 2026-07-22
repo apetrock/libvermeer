@@ -29,16 +29,13 @@ fn vs_albedo(in: VertexInput) -> AlbedoVertexOutput {
   var out: AlbedoVertexOutput;
 
   var pos = in.position;
-  let dp = normalize(in.p1 - in.p0);
-  let Z = vec3f(0.0, 1.001, 0.0);
-  let m0 = dp;
-  let m1 = normalize(cross(m0, Z));
+  let dp = in.p1 - in.p0;
+  let m0 = normalize(dp);
+  let up = vec3f(0.0, 1.0, 0.0);
+  let ref_axis = select(up, vec3f(1.0, 0.0, 0.0), abs(dot(m0, up)) > 0.99);
+  let m1 = normalize(cross(m0, ref_axis));
   let m2 = normalize(cross(m0, m1));
-  let M = mat3x3f(
-    m1[0], m1[1], m1[2],
-    m2[0], m2[1], m2[2],
-    m0[0], m0[1], m0[2],
-  );
+  let M = mat3x3f(m1, m2, m0);
 
   pos = M * in.radius * pos;
   if (in.flag == u32(0)) {

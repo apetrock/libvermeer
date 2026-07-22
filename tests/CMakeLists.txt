@@ -1,0 +1,5 @@
+add_executable(vermeer_render_contract_tests render_contract_tests.cpp)
+target_link_libraries(vermeer_render_contract_tests PRIVATE vermeer_lewitt)
+target_compile_features(vermeer_render_contract_tests PRIVATE cxx_std_20)
+target_copy_webgpu_binaries(vermeer_render_contract_tests)
+add_test(NAME vermeer_render_contract_tests COMMAND vermeer_render_contract_tests)

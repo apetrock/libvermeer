@@ -23,7 +23,6 @@ namespace lewitt
       using ptr = std::shared_ptr<doable>;
       doable()
       {
-        std::cout << "making bindings" << std::endl;
         _bindings = bindings::group::create();
       }
 
@@ -59,15 +58,12 @@ namespace lewitt
           _bindings->init(device);
           if (texture_format_defined())
           {
-            std::cout << "init render pipe" << std::endl;
-            std::cout << _color_format << " " << _depth_format << std::endl;
             _shader->init(
                 device, _bindings->get_layout(),
                 _color_format, _depth_format);
           }
           else
           {
-            std::cout << "init compute pipe" << std::endl;
             _shader->init(device, _bindings->get_layout());
           }
           _inited = true;
@@ -125,7 +121,6 @@ namespace lewitt
 
       renderable() : doable()
       {
-        std::cout << "making renderable" << std::endl;
       }
 
       ~renderable() {}
@@ -371,13 +366,10 @@ namespace lewitt
 
       void init_buffers(wgpu::Device device, uint16_t width, uint16_t height)
       {
-        std::cout << "Initializing buffers..." << std::endl;
-        std::cout << "  -Uniform buffer..." << std::endl;
         this->set_invocation_count(width, height);
 
         bindings::uniform::ptr uniforms =
             bindings::uniform::create<quat, uint32_t, uint32_t, float, float>({"orientation", "width", "height", "pad0", "pad1"}, device);
-        std::cout << "  -Ray buffer..." << std::endl;
 
         uniforms->set_member("orientation", quat(1.0, 0.0, 0.0, 0.0));
         uniforms->set_member("width", (uint32_t)width);
@@ -393,15 +385,12 @@ namespace lewitt
         ray_buffer_bindings->set_visibility(wgpu::ShaderStage::Compute);
         ray_buffer_bindings->set_binding_type(wgpu::BufferBindingType::Storage);
         ray_buffer_bindings->get_buffer()->write<ray>(rays, device);
-        std::cout << "  -Assigning buffers..." << std::endl;
         _bindings->assign(2, uniforms);
-        std::cout << "  -Assigning ray buffer..." << std::endl;
         _bindings->assign(3, ray_buffer_bindings);
       }
 
       void init_textures(wgpu::Device device)
       {
-        std::cout << "Initializing textures..." << std::endl;
         // Load image data
         lewitt::bindings::texture::ptr input_texture_binding = lewitt::bindings::texture::create(
             resources::loadTextureAndView(RESOURCE_DIR "/input.jpg", device));
@@ -410,21 +399,17 @@ namespace lewitt
         input_texture_binding->set_sample_type(wgpu::TextureSampleType::Float);
         input_texture_binding->set_dimension(wgpu::TextureViewDimension::_2D);
 
-        std::cout << "input_texture valid: " << input_texture_binding->valid() << std::endl;
 
         uint32_t width = input_texture_binding->get_texture().getWidth();
         uint32_t height = input_texture_binding->get_texture().getHeight();
 
-        std::cout << "verifying texture dimensions: " << width << "x" << height << std::endl;
 
         lewitt::bindings::storage_texture::ptr output_texture_binding = lewitt::bindings::storage_texture::create(
             resources::createEmptyStorageTextureAndView(width, height, device));
 
         output_texture_binding->set_visibility(wgpu::ShaderStage::Compute);
         output_texture_binding->set_compute_write_2d();
-        std::cout << "  -Input texture..." << std::endl;
         _bindings->assign(0, input_texture_binding);
-        std::cout << "  -Output texture..." << std::endl;
         _bindings->assign(1, output_texture_binding);
         init_buffers(device, width, height);
       }
@@ -435,7 +420,6 @@ namespace lewitt
         DEFINE_CREATE_FUNC(ray_shader)
         ray_shader(wgpu::Device &device)
         {
-          std::cout << "Creating shader module..." << std::endl;
           this->shaderModule = resources::load_shader_module(RESOURCE_DIR "/ray-shader.wgsl", device);
         }
         ~ray_shader()
@@ -447,7 +431,6 @@ namespace lewitt
              wgpu::BindGroupLayout &bind_group_layout)
         {
           // Create compute pipeline layout
-          std::cout << "init compute pipeline" << std::endl;
           wgpu::PipelineLayoutDescriptor pipelineLayoutDesc;
           pipelineLayoutDesc.bindGroupLayoutCount = 1;
           pipelineLayoutDesc.bindGroupLayouts = (WGPUBindGroupLayout *)&bind_group_layout;
