@@ -14,12 +14,8 @@ inline bool ssao_uniform_size_matches(std::size_t size) {
 }
 
 inline int gbuffer_pass_count(bool has_meshes, bool has_debug_lines) {
-  int passes = 0;
-  if (has_meshes || has_debug_lines) {
-    passes += 1; // MRT position/normal + depth
-    passes += 1; // albedo with depth read
-  }
-  return passes;
+  // One MRT writes position/normal/albedo/depth together.
+  return (has_meshes || has_debug_lines) ? 1 : 0;
 }
 
 inline wgpu::CompareFunction albedo_depth_compare() {

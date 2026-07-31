@@ -117,13 +117,14 @@ namespace lewitt
 
     inline wgpu::PrimitiveState basic_primitive_state(
         wgpu::PrimitiveTopology topology,
-        wgpu::IndexFormat index_format)
+        wgpu::IndexFormat index_format,
+        wgpu::CullMode cull_mode = wgpu::CullMode::None)
     {
       wgpu::PrimitiveState state;
       state.topology = topology;
       state.stripIndexFormat = index_format;
       state.frontFace = wgpu::FrontFace::CCW;
-      state.cullMode = wgpu::CullMode::None;
+      state.cullMode = cull_mode;
       return state;
     }
 
@@ -311,7 +312,8 @@ namespace lewitt
            std::string vertex_entry = "vs_main",
            std::string fragment_entry = "fs_main",
            bool depth_write_enabled = true,
-           wgpu::CompareFunction depth_compare = wgpu::CompareFunction::Less)
+           wgpu::CompareFunction depth_compare = wgpu::CompareFunction::Less,
+           wgpu::CullMode cull_mode = wgpu::CullMode::None)
       {
 
         wgpu::RenderPipelineDescriptor pipelineDesc;
@@ -319,7 +321,7 @@ namespace lewitt
         pipelineDesc.vertex = basic_vertex_state(vertex_entry.c_str(), this->shaderModule, _layouts.size());
         pipelineDesc.vertex.buffers = _layouts.data();
         pipelineDesc.primitive = basic_primitive_state(wgpu::PrimitiveTopology::TriangleList,
-                                                       wgpu::IndexFormat::Undefined);
+                                                       wgpu::IndexFormat::Undefined, cull_mode);
 
         wgpu::BlendState blendState = basic_blend_state();
         wgpu::ColorTargetState colorTarget = basic_color_target(color_format, blendState);
@@ -361,7 +363,8 @@ namespace lewitt
            std::string vertex_entry = "vs_main",
            std::string fragment_entry = "fs_main",
            bool depth_write_enabled = true,
-           wgpu::CompareFunction depth_compare = wgpu::CompareFunction::Less)
+           wgpu::CompareFunction depth_compare = wgpu::CompareFunction::Less,
+           wgpu::CullMode cull_mode = wgpu::CullMode::None)
       {
         if (color_formats.empty()) {
           return false;
@@ -373,7 +376,7 @@ namespace lewitt
             basic_vertex_state(vertex_entry.c_str(), this->shaderModule, _layouts.size());
         pipelineDesc.vertex.buffers = _layouts.data();
         pipelineDesc.primitive = basic_primitive_state(wgpu::PrimitiveTopology::TriangleList,
-                                                       wgpu::IndexFormat::Undefined);
+                                                       wgpu::IndexFormat::Undefined, cull_mode);
 
         wgpu::BlendState blendState = basic_blend_state();
         std::vector<wgpu::ColorTargetState> color_targets;

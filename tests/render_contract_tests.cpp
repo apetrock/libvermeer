@@ -30,10 +30,10 @@ void test_blendable_formats() {
 
 void test_gbuffer_pass_count() {
   assert(lewitt::render_contract::gbuffer_pass_count(false, false) == 0);
-  assert(lewitt::render_contract::gbuffer_pass_count(true, false) == 2);
-  assert(lewitt::render_contract::gbuffer_pass_count(false, true) == 2);
-  assert(lewitt::render_contract::gbuffer_pass_count(true, true) == 2);
-  assert(lewitt::nodes::g_buffer_node::k_pass_count_with_geometry == 2);
+  assert(lewitt::render_contract::gbuffer_pass_count(true, false) == 1);
+  assert(lewitt::render_contract::gbuffer_pass_count(false, true) == 1);
+  assert(lewitt::render_contract::gbuffer_pass_count(true, true) == 1);
+  assert(lewitt::nodes::g_buffer_node::k_pass_count_with_geometry == 1);
 }
 
 void test_ssao_uniform_size() {

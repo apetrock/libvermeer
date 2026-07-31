@@ -5,6 +5,8 @@
 #include <vector>
 
 #include "lewitt/debug_line_buffer.hpp"
+#include "lewitt/debug_sphere_buffer.hpp"
+#include "lewitt/debug_torus_buffer.hpp"
 #include "lewitt/gpu_session.hpp"
 #include "lewitt/mesh_buffer.hpp"
 #include "lewitt/present_target.hpp"
@@ -62,6 +64,18 @@ struct gbuffer_visualizer_pipeline {
   void set_debug_lines(const std::vector<std::weak_ptr<lewitt::debug_line_buffer>> &debug_lines) {
     if (gbuffer) {
       gbuffer->set_input(nodes::g_buffer_node::input::debug_lines, debug_lines);
+    }
+  }
+
+  void set_debug_spheres(const std::vector<std::weak_ptr<lewitt::debug_sphere_buffer>> &debug_spheres) {
+    if (gbuffer) {
+      gbuffer->set_input(nodes::g_buffer_node::input::debug_spheres, debug_spheres);
+    }
+  }
+
+  void set_debug_tori(const std::vector<std::weak_ptr<lewitt::debug_torus_buffer>> &debug_tori) {
+    if (gbuffer) {
+      gbuffer->set_input(nodes::g_buffer_node::input::debug_tori, debug_tori);
     }
   }
 
@@ -186,6 +200,23 @@ struct ssao_deferred_pipeline {
     if (gbuffer) {
       gbuffer->set_input(nodes::g_buffer_node::input::debug_lines, debug_lines);
     }
+  }
+
+  void set_debug_spheres(const std::vector<std::weak_ptr<lewitt::debug_sphere_buffer>> &debug_spheres) {
+    if (gbuffer) {
+      gbuffer->set_input(nodes::g_buffer_node::input::debug_spheres, debug_spheres);
+    }
+  }
+
+  void set_debug_tori(const std::vector<std::weak_ptr<lewitt::debug_torus_buffer>> &debug_tori) {
+    if (gbuffer) {
+      gbuffer->set_input(nodes::g_buffer_node::input::debug_tori, debug_tori);
+    }
+  }
+
+  void request_record_frame() {
+    if (ffmpeg)
+      ffmpeg->request_encode();
   }
 
   void rebind_pool() {
@@ -343,6 +374,23 @@ struct forward_pipeline {
     if (forward) {
       forward->set_input(nodes::forward_mesh_node::input::debug_lines, debug_lines);
     }
+  }
+
+  void set_debug_spheres(const std::vector<std::weak_ptr<lewitt::debug_sphere_buffer>> &debug_spheres) {
+    if (forward) {
+      forward->set_input(nodes::forward_mesh_node::input::debug_spheres, debug_spheres);
+    }
+  }
+
+  void set_debug_tori(const std::vector<std::weak_ptr<lewitt::debug_torus_buffer>> &debug_tori) {
+    if (forward) {
+      forward->set_input(nodes::forward_mesh_node::input::debug_tori, debug_tori);
+    }
+  }
+
+  void request_record_frame() {
+    if (ffmpeg)
+      ffmpeg->request_encode();
   }
 
   void rebind_pool() {

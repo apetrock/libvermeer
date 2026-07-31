@@ -1,12 +1,14 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -48,19 +50,30 @@ public:
 #endif
   }
 
+  // Host calls this when a new sim SceneFrame was applied; idle presents skip encode.
+  void request_encode() { _encode_requested.store(true, std::memory_order_relaxed); }
+
   void init(wgpu::Device device, const lewitt::render_targets::extent2d &extent,
             const ffmpeg_record_config &config) {
     finalize();
     _device = device;
     _extent = extent;
     _config = config;
-    _row_bytes = extent.width * 4;
-    _padded_row_bytes = std::max(256u, _row_bytes);
-    _frame_bytes = _padded_row_bytes * extent.height;
+    _encode_requested.store(false, std::memory_order_relaxed);
+
+    // yuv420p (libx264) requires even dimensions; crop the odd edge if needed.
+    _encode_width = extent.width & ~1u;
+    _encode_height = extent.height & ~1u;
+    _row_bytes = _encode_width * 4;
+    // WebGPU copyTextureToBuffer requires bytesPerRow multiple of 256.
+    _padded_row_bytes = ((_row_bytes + 255u) / 256u) * 256u;
+    if (_padded_row_bytes < 256u)
+      _padded_row_bytes = 256u;
+    _frame_bytes = static_cast<uint64_t>(_padded_row_bytes) * _encode_height;
     _rgba_row.resize(_row_bytes);
 
 #if !defined(_WIN32)
-    if (!config.enabled || !extent.width || !extent.height) {
+    if (!config.enabled || !_encode_width || !_encode_height) {
       return;
     }
 
@@ -75,13 +88,15 @@ public:
       std::filesystem::create_directories(parent, ec);
     }
 
+    // One continuous mp4 (not -f segment): mp4 segment without frag flags yields
+    // tiny/broken one-frame files. Playback rate is config.fps sim-frames/sec.
+    const std::string out = config.output_path + ".mp4";
     std::ostringstream cmd;
     cmd << "ffmpeg -hide_banner -loglevel error -y"
-        << " -r " << config.fps << " -f rawvideo -pix_fmt rgba -s " << extent.width << "x"
-        << extent.height << " -i -"
-        << " -threads 0 -preset fast -crf " << config.crf << " -pix_fmt yuv420p"
-        << " -f segment -segment_time " << config.segment_seconds << " -reset_timestamps 1 "
-        << config.output_path << "_%03d.mp4";
+        << " -f rawvideo -pix_fmt rgba -s " << _encode_width << "x" << _encode_height
+        << " -r " << config.fps << " -i -"
+        << " -an -c:v libx264 -threads 0 -preset fast -crf " << config.crf
+        << " -pix_fmt yuv420p -movflags +faststart " << out;
 
     _pipe = lewitt::subprocess::open_pipe_write(cmd.str());
     if (_pipe == nullptr) {
@@ -89,7 +104,8 @@ public:
       return;
     }
 
-    std::cout << "ffmpeg_encode_sink: recording to " << config.output_path << "_NNN.mp4\n";
+    std::cerr << "ffmpeg_encode_sink: recording to " << out
+              << " (sim frames only @ " << config.fps << " fps playback)\n";
 
     wgpu::BufferDescriptor buffer_desc{};
     buffer_desc.size = _frame_bytes;
@@ -99,7 +115,10 @@ public:
   }
 
   void resize(wgpu::Device device, const lewitt::render_targets::extent2d &extent) {
-    if (_extent.width == extent.width && _extent.height == extent.height && active()) {
+    const uint32_t ew = extent.width & ~1u;
+    const uint32_t eh = extent.height & ~1u;
+    if (ew == _encode_width && eh == _encode_height && active()) {
+      _extent = extent;
       return;
     }
     init(device, extent, _config);
@@ -126,6 +145,9 @@ public:
     return;
 #else
     LEWITT_PERF_SCOPE_PATH("lombardi::nodes::ffmpeg_encode_sink::encode_frame");
+    if (!_encode_requested.exchange(false, std::memory_order_relaxed)) {
+      return;
+    }
     if (_pipe == nullptr || !_staging || !_device) {
       return;
     }
@@ -141,6 +163,7 @@ public:
       return;
     }
 
+    // Copy only the even-sized region we encode (matches ffmpeg -s).
     wgpu::CommandEncoder encoder = _device.createCommandEncoder(wgpu::CommandEncoderDescriptor{});
     wgpu::ImageCopyTexture src{};
     src.texture = texture;
@@ -148,34 +171,44 @@ public:
     dst.buffer = _staging;
     dst.layout.offset = 0;
     dst.layout.bytesPerRow = _padded_row_bytes;
-    dst.layout.rowsPerImage = _extent.height;
-    encoder.copyTextureToBuffer(src, dst, {_extent.width, _extent.height, 1});
+    dst.layout.rowsPerImage = _encode_height;
+    encoder.copyTextureToBuffer(src, dst, {_encode_width, _encode_height, 1});
     wgpu::CommandBuffer commands = encoder.finish(wgpu::CommandBufferDescriptor{});
     ctx.queue.submit(1, &commands);
 
     bool done = false;
-    _staging.mapAsync(wgpu::MapMode::Read, 0, _frame_bytes,
-                      [&](wgpu::BufferMapAsyncStatus status) {
-                        if (status == wgpu::BufferMapAsyncStatus::Success) {
-                          const auto *mapped =
-                              static_cast<const uint8_t *>(_staging.getConstMappedRange(0, _frame_bytes));
-                          if (mapped != nullptr) {
-                            write_frame_rows(mapped);
-                            _staging.unmap();
-                          }
-                        }
-                        done = true;
-                      });
+    // CRITICAL: keep the callback handle alive until mapAsync completes. Dropping
+    // it leaves userdata dangling and the wait loop hangs forever.
+    auto map_handle = _staging.mapAsync(wgpu::MapMode::Read, 0, _frame_bytes,
+                                        [&](wgpu::BufferMapAsyncStatus status) {
+                                          if (status == wgpu::BufferMapAsyncStatus::Success) {
+                                            const auto *mapped = static_cast<const uint8_t *>(
+                                                _staging.getConstMappedRange(0, _frame_bytes));
+                                            if (mapped != nullptr) {
+                                              write_frame_rows(mapped);
+                                              _staging.unmap();
+                                            }
+                                          }
+                                          done = true;
+                                        });
 
     while (!done) {
+#ifdef WEBGPU_BACKEND_WGPU
       ctx.queue.submit(0, nullptr);
+#elif defined(WEBGPU_BACKEND_DAWN)
+      wgpuDeviceTick(_device);
+#else
+      ctx.queue.submit(0, nullptr);
+#endif
     }
+    (void)map_handle;
 #endif
   }
 
   void finalize() {
 #if !defined(_WIN32)
     if (_pipe != nullptr) {
+      std::fflush(_pipe);
       lewitt::subprocess::close_pipe(_pipe);
       _pipe = nullptr;
     }
@@ -189,7 +222,7 @@ public:
 private:
 #if !defined(_WIN32)
   void write_frame_rows(const uint8_t *mapped) {
-    for (uint32_t row = 0; row < _extent.height; ++row) {
+    for (uint32_t row = 0; row < _encode_height; ++row) {
       const uint8_t *src_row = mapped + static_cast<size_t>(row) * _padded_row_bytes;
       std::memcpy(_rgba_row.data(), src_row, _row_bytes);
       if (std::fwrite(_rgba_row.data(), 1, _row_bytes, _pipe) != _row_bytes) {
@@ -205,10 +238,13 @@ private:
   ffmpeg_record_config _config{};
   lewitt::render_targets::extent2d _extent{};
   wgpu::Device _device = nullptr;
+  uint32_t _encode_width = 0;
+  uint32_t _encode_height = 0;
   uint32_t _row_bytes = 0;
   uint32_t _padded_row_bytes = 0;
-  uint32_t _frame_bytes = 0;
+  uint64_t _frame_bytes = 0;
   std::vector<uint8_t> _rgba_row;
+  std::atomic<bool> _encode_requested{false};
 #if !defined(_WIN32)
   wgpu::Buffer _staging = nullptr;
   FILE *_pipe = nullptr;

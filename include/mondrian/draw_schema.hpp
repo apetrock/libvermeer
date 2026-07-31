@@ -24,6 +24,7 @@ struct draw_schema {
   wgpu::TextureFormat depth_format = wgpu::TextureFormat::Undefined;
   bool depth_write_enabled = true;
   wgpu::CompareFunction depth_compare = wgpu::CompareFunction::Less;
+  wgpu::CullMode cull_mode = wgpu::CullMode::None;
   std::vector<wgpu::VertexBufferLayout> vertex_layouts{};
 };
 
@@ -37,7 +38,7 @@ public:
 
     const cache_key key{schema.shader_path, schema.vertex_entry, schema.fragment_entry,
                         schema.color_formats, schema.depth_format, schema.depth_write_enabled,
-                        schema.depth_compare, bindings.get()};
+                        schema.depth_compare, schema.cull_mode, bindings.get()};
 
     if (const auto it = _entries.find(key); it != _entries.end()) {
       return it->second.pipeline;
@@ -52,11 +53,11 @@ public:
     if (schema.color_formats.size() > 1) {
       ready = shader->init(device, bindings->get_layout(), schema.color_formats,
                            schema.depth_format, schema.vertex_entry, schema.fragment_entry,
-                           schema.depth_write_enabled, schema.depth_compare);
+                           schema.depth_write_enabled, schema.depth_compare, schema.cull_mode);
     } else if (!schema.color_formats.empty()) {
       ready = shader->init(device, bindings->get_layout(), schema.color_formats.front(),
                            schema.depth_format, schema.vertex_entry, schema.fragment_entry,
-                           schema.depth_write_enabled, schema.depth_compare);
+                           schema.depth_write_enabled, schema.depth_compare, schema.cull_mode);
     }
 
     if (!ready) {
@@ -86,6 +87,7 @@ private:
     wgpu::TextureFormat depth_format;
     bool depth_write_enabled;
     wgpu::CompareFunction depth_compare;
+    wgpu::CullMode cull_mode;
     void *layout_handle;
 
     bool operator==(const cache_key &other) const {
@@ -93,7 +95,8 @@ private:
              fragment_entry == other.fragment_entry && color_formats == other.color_formats &&
              depth_format == other.depth_format &&
              depth_write_enabled == other.depth_write_enabled &&
-             depth_compare == other.depth_compare && layout_handle == other.layout_handle;
+             depth_compare == other.depth_compare && cull_mode == other.cull_mode &&
+             layout_handle == other.layout_handle;
     }
   };
 
@@ -104,6 +107,7 @@ private:
       hash ^= std::hash<std::string>{}(key.fragment_entry) << 2;
       hash ^= std::hash<void *>{}(key.layout_handle) << 3;
       hash ^= std::hash<int>{}(static_cast<int>(key.depth_compare)) << 4;
+      hash ^= std::hash<int>{}(static_cast<int>(key.cull_mode)) << 5;
       return hash;
     }
   };
@@ -118,8 +122,10 @@ inline draw_schema mesh_gbuffer_mrt_schema() {
   schema.shader_path = RESOURCE_DIR "/gaudi_gbuffer.wgsl";
   schema.vertex_entry = "vs_gbuffer";
   schema.fragment_entry = "fs_gbuffer";
+  // Single draw writes pos/normal/albedo/depth — avoids dual-pass z-fight on solids.
   schema.color_formats = {lewitt::resources::position_attachment::format(),
-                          lewitt::resources::normal_attachment::format()};
+                          lewitt::resources::normal_attachment::format(),
+                          lewitt::resources::albedo_spec_attachment::format()};
   schema.depth_format = lewitt::resources::depth_attachment::format();
   schema.depth_write_enabled = true;
   schema.depth_compare = wgpu::CompareFunction::Less;
@@ -133,7 +139,8 @@ inline draw_schema debug_line_gbuffer_mrt_schema() {
   schema.vertex_entry = "vs_gbuffer";
   schema.fragment_entry = "fs_gbuffer";
   schema.color_formats = {lewitt::resources::position_attachment::format(),
-                          lewitt::resources::normal_attachment::format()};
+                          lewitt::resources::normal_attachment::format(),
+                          lewitt::resources::albedo_spec_attachment::format()};
   schema.depth_format = lewitt::resources::depth_attachment::format();
   schema.depth_write_enabled = true;
   schema.depth_compare = wgpu::CompareFunction::Less;
@@ -187,6 +194,76 @@ inline draw_schema debug_line_forward_schema() {
   schema.depth_format = lewitt::resources::depth_attachment::format();
   schema.depth_write_enabled = false;
   schema.depth_compare = render_contract::albedo_depth_compare();
+  return schema;
+}
+
+inline draw_schema debug_sphere_gbuffer_mrt_schema() {
+  draw_schema schema{};
+  schema.shader_path = RESOURCE_DIR "/debug_sphere_gbuffer.wgsl";
+  schema.vertex_entry = "vs_gbuffer";
+  schema.fragment_entry = "fs_gbuffer";
+  schema.color_formats = {lewitt::resources::position_attachment::format(),
+                          lewitt::resources::normal_attachment::format(),
+                          lewitt::resources::albedo_spec_attachment::format()};
+  schema.depth_format = lewitt::resources::depth_attachment::format();
+  schema.depth_write_enabled = true;
+  schema.depth_compare = wgpu::CompareFunction::Less;
+  // Solid shells: CullNone draws backfaces that deferred lights to black,
+  // z-fighting the green frontfaces.
+  schema.cull_mode = wgpu::CullMode::Back;
+  return schema;
+}
+
+inline draw_schema debug_sphere_albedo_schema() {
+  draw_schema schema{};
+  schema.shader_path = RESOURCE_DIR "/debug_sphere_albedo.wgsl";
+  schema.vertex_entry = "vs_albedo";
+  schema.fragment_entry = "fs_albedo";
+  schema.color_formats = {lewitt::resources::albedo_spec_attachment::format()};
+  schema.depth_format = lewitt::resources::depth_attachment::format();
+  schema.depth_write_enabled = false;
+  schema.depth_compare = render_contract::albedo_depth_compare();
+  schema.cull_mode = wgpu::CullMode::Back;
+  return schema;
+}
+
+inline draw_schema debug_sphere_forward_schema() {
+  draw_schema schema = debug_sphere_albedo_schema();
+  schema.color_formats = {lewitt::resources::lit_color_attachment::format()};
+  return schema;
+}
+
+inline draw_schema debug_torus_gbuffer_mrt_schema() {
+  draw_schema schema{};
+  schema.shader_path = RESOURCE_DIR "/debug_torus_gbuffer.wgsl";
+  schema.vertex_entry = "vs_gbuffer";
+  schema.fragment_entry = "fs_gbuffer";
+  schema.color_formats = {lewitt::resources::position_attachment::format(),
+                          lewitt::resources::normal_attachment::format(),
+                          lewitt::resources::albedo_spec_attachment::format()};
+  schema.depth_format = lewitt::resources::depth_attachment::format();
+  schema.depth_write_enabled = true;
+  schema.depth_compare = wgpu::CompareFunction::Less;
+  schema.cull_mode = wgpu::CullMode::Back;
+  return schema;
+}
+
+inline draw_schema debug_torus_albedo_schema() {
+  draw_schema schema{};
+  schema.shader_path = RESOURCE_DIR "/debug_torus_albedo.wgsl";
+  schema.vertex_entry = "vs_albedo";
+  schema.fragment_entry = "fs_albedo";
+  schema.color_formats = {lewitt::resources::albedo_spec_attachment::format()};
+  schema.depth_format = lewitt::resources::depth_attachment::format();
+  schema.depth_write_enabled = false;
+  schema.depth_compare = render_contract::albedo_depth_compare();
+  schema.cull_mode = wgpu::CullMode::Back;
+  return schema;
+}
+
+inline draw_schema debug_torus_forward_schema() {
+  draw_schema schema = debug_torus_albedo_schema();
+  schema.color_formats = {lewitt::resources::lit_color_attachment::format()};
   return schema;
 }
 

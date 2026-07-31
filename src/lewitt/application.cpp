@@ -212,8 +212,12 @@ namespace lewitt
 		_render_scene->camera_move(xpos, ypos, m_queue);
 	}
 
-	void app_runner::onMouseButton(int button, int action, int /* modifiers */)
+	void app_runner::onMouseButton(int button, int action, int modifiers)
 	{
+		double xpos = 0.0, ypos = 0.0;
+		if (m_window)
+			glfwGetCursorPos(m_window, &xpos, &ypos);
+
 		if (button == GLFW_MOUSE_BUTTON_LEFT)
 		{
 			switch (action)
@@ -223,6 +227,25 @@ namespace lewitt
 				break;
 			case GLFW_RELEASE:
 				_render_scene->camera_move_end();
+				break;
+			}
+			return;
+		}
+
+		// Focus-plane pan: middle mouse, or Shift+right (star-style).
+		const bool pan_button =
+				button == GLFW_MOUSE_BUTTON_MIDDLE ||
+				(button == GLFW_MOUSE_BUTTON_RIGHT &&
+				 (modifiers & GLFW_MOD_SHIFT));
+		if (pan_button)
+		{
+			switch (action)
+			{
+			case GLFW_PRESS:
+				_render_scene->camera_pan_start(xpos, ypos);
+				break;
+			case GLFW_RELEASE:
+				_render_scene->camera_pan_end();
 				break;
 			}
 		}

@@ -81,13 +81,20 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
   let bitangent = cross(normal, tangent);
   let TBN = mat3x3f(tangent, bitangent, normal);
 
+  // params: (radius_scale, bias, ao_power, fade_start)
+  // Radius scales with view depth so kernel stays roughly screen-stable when dollying out.
+  let viewDist = max(abs(fragPos.z), 1.0e-3);
+  let radius = u_ssao.params.x * viewDist;
+  let bias = u_ssao.params.y;
+  let ao_power = max(u_ssao.params.z, 1.0e-3);
+  let fade_start = max(u_ssao.params.w, 1.0e-3);
+
   var occlusion = 0.0;
   for (var i = 0; i < i32(KSIZE); i++) {
     var sphere = getSphere(i);
     sphere.z = abs(sphere.z);
     var samplePos = TBN * sphere;
-    //var samplePos = normal;
-    samplePos = fragPos + samplePos * u_ssao.params.x;
+    samplePos = fragPos + samplePos * radius;
 
     var offset = u_ssao.projectionMatrix * vec4f(samplePos, 1.0);
     offset = offset / offset.w;
@@ -95,12 +102,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
     let sampleDepth = textureSample(t_position, s_gbuffer, offset.xy).z;
     let rangeCheck =
-      smoothstep(0.0, 1.0, u_ssao.params.x / abs(fragPos.z - sampleDepth));
+      smoothstep(0.0, 1.0, radius / max(abs(fragPos.z - sampleDepth), 1.0e-5));
     occlusion +=
-      select(0.0, 1.0, sampleDepth >= samplePos.z + u_ssao.params.y) * rangeCheck;
+      select(0.0, 1.0, sampleDepth >= samplePos.z + bias) * rangeCheck;
   }
 
   occlusion = 1.0 - (occlusion / f32(KSIZE));
-  let ao = pow(occlusion, 4.0);
+  var ao = pow(occlusion, ao_power);
+  // Fade AO toward unoccluded as we pull away from the scene.
+  let fade = smoothstep(fade_start, fade_start * 3.0, viewDist);
+  ao = mix(ao, 1.0, fade);
   return vec4f(ao, ao, ao, 1.0);
 }

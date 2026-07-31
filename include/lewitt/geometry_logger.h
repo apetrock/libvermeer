@@ -147,6 +147,22 @@ namespace lewitt
 
   namespace logger
   {
+    GLM_TYPEDEFS;
+
+    struct exported_sphere {
+      vec3 center{};
+      float radius = 0.05f;
+      vec3 color{1.0f, 0.2f, 0.2f};
+    };
+
+    struct exported_torus {
+      vec3 center{};
+      vec3 axis{0.0f, 0.0f, 1.0f};
+      float major_radius = 1.0f;
+      float minor_radius = 0.25f;
+      vec3 color{0.2f, 0.85f, 1.0f};
+    };
+
     class geometry
     {
 
@@ -156,11 +172,18 @@ namespace lewitt
       static geometry &get_instance();
       static void point(const vec3 & p, const vec3 &color, const float & r);
       static void line(const vec3x2 & line, const vec3 &color, const float & r);
+      static void sphere(const vec3 &center, float radius, const vec3 &color);
+      static void torus(const vec3 &center, const vec3 &axis, float major_radius,
+                        float minor_radius, const vec3 &color);
       static void clear();
       // Thread-safe copy of current lines (does not clear).
       static std::vector<doables::lineable::exported_line> export_lines();
       // Thread-safe move of current lines, then clear.
       static std::vector<doables::lineable::exported_line> steal_lines();
+      static std::vector<exported_sphere> export_spheres();
+      static std::vector<exported_sphere> steal_spheres();
+      static std::vector<exported_torus> export_tori();
+      static std::vector<exported_torus> steal_tori();
       bool &initialized() { return instance_flag; }
       bool initialized() const { return instance_flag; }
 
@@ -178,6 +201,8 @@ namespace lewitt
       static geometry *global_instance;
       static bool instance_flag;
       std::mutex _mutex;
+      std::vector<exported_sphere> _spheres;
+      std::vector<exported_torus> _tori;
     };
   };
 }

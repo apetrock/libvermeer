@@ -5,6 +5,8 @@
 #include <vector>
 
 #include "lewitt/debug_line_buffer.hpp"
+#include "lewitt/debug_sphere_buffer.hpp"
+#include "lewitt/debug_torus_buffer.hpp"
 #include "lewitt/gpu_session.hpp"
 #include "lewitt/mesh_buffer.hpp"
 #include "lombardi/gbuffer_graph_helpers.hpp"
@@ -29,6 +31,12 @@ public:
   virtual void set_meshes(const std::vector<std::weak_ptr<lewitt::mesh_buffer>> &meshes) = 0;
   virtual void set_debug_lines(
       const std::vector<std::weak_ptr<lewitt::debug_line_buffer>> &debug_lines) = 0;
+  virtual void set_debug_spheres(
+      const std::vector<std::weak_ptr<lewitt::debug_sphere_buffer>> &debug_spheres) {}
+  virtual void set_debug_tori(
+      const std::vector<std::weak_ptr<lewitt::debug_torus_buffer>> &debug_tori) {}
+  // Encode the next presented frame into the FFmpeg dump (no-op if recording off).
+  virtual void request_record_frame() {}
 };
 
 namespace detail {
@@ -60,6 +68,18 @@ public:
     _pipeline.set_debug_lines(debug_lines);
   }
 
+  void set_debug_spheres(
+      const std::vector<std::weak_ptr<lewitt::debug_sphere_buffer>> &debug_spheres) override {
+    _pipeline.set_debug_spheres(debug_spheres);
+  }
+
+  void set_debug_tori(
+      const std::vector<std::weak_ptr<lewitt::debug_torus_buffer>> &debug_tori) override {
+    _pipeline.set_debug_tori(debug_tori);
+  }
+
+  void request_record_frame() override { _pipeline.request_record_frame(); }
+
 private:
   ssao_deferred_pipeline _pipeline{};
 };
@@ -89,6 +109,18 @@ public:
       const std::vector<std::weak_ptr<lewitt::debug_line_buffer>> &debug_lines) override {
     _pipeline.set_debug_lines(debug_lines);
   }
+
+  void set_debug_spheres(
+      const std::vector<std::weak_ptr<lewitt::debug_sphere_buffer>> &debug_spheres) override {
+    _pipeline.set_debug_spheres(debug_spheres);
+  }
+
+  void set_debug_tori(
+      const std::vector<std::weak_ptr<lewitt::debug_torus_buffer>> &debug_tori) override {
+    _pipeline.set_debug_tori(debug_tori);
+  }
+
+  void request_record_frame() override { _pipeline.request_record_frame(); }
 
 private:
   forward_pipeline _pipeline{};

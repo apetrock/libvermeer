@@ -46,11 +46,28 @@ namespace lewitt
       logger.debugLines->add_line(line, color, r);
     }
 
+    void geometry::sphere(const vec3 &center, float radius, const vec3 &color)
+    {
+      geometry &logger = geometry::get_instance();
+      std::lock_guard<std::mutex> lock(logger._mutex);
+      logger._spheres.push_back({center, radius, color});
+    }
+
+    void geometry::torus(const vec3 &center, const vec3 &axis, float major_radius,
+                         float minor_radius, const vec3 &color)
+    {
+      geometry &logger = geometry::get_instance();
+      std::lock_guard<std::mutex> lock(logger._mutex);
+      logger._tori.push_back({center, axis, major_radius, minor_radius, color});
+    }
+
     void geometry::clear()
     {
       geometry &logger = geometry::get_instance();
       std::lock_guard<std::mutex> lock(logger._mutex);
       logger.debugLines->clear();
+      logger._spheres.clear();
+      logger._tori.clear();
     }
 
     std::vector<doables::lineable::exported_line> geometry::export_lines()
@@ -67,6 +84,38 @@ namespace lewitt
       auto lines = logger.debugLines->exported_lines();
       logger.debugLines->clear();
       return lines;
+    }
+
+    std::vector<exported_sphere> geometry::export_spheres()
+    {
+      geometry &logger = geometry::get_instance();
+      std::lock_guard<std::mutex> lock(logger._mutex);
+      return logger._spheres;
+    }
+
+    std::vector<exported_sphere> geometry::steal_spheres()
+    {
+      geometry &logger = geometry::get_instance();
+      std::lock_guard<std::mutex> lock(logger._mutex);
+      auto out = logger._spheres;
+      logger._spheres.clear();
+      return out;
+    }
+
+    std::vector<exported_torus> geometry::export_tori()
+    {
+      geometry &logger = geometry::get_instance();
+      std::lock_guard<std::mutex> lock(logger._mutex);
+      return logger._tori;
+    }
+
+    std::vector<exported_torus> geometry::steal_tori()
+    {
+      geometry &logger = geometry::get_instance();
+      std::lock_guard<std::mutex> lock(logger._mutex);
+      auto out = logger._tori;
+      logger._tori.clear();
+      return out;
     }
   } // namespace logger
 } // namespace lewitt

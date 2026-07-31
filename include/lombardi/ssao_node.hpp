@@ -48,7 +48,8 @@ public:
         {"projectionMatrix", "params"}, device);
     _params->set_visibility(wgpu::ShaderStage::Fragment);
     _params->set_id(3);
-    _params->set_member("params", glm::vec4(0.005f, 0.01f, 0.0f, 0.0f));
+    // (radius_scale * |z|, bias, ao_power, fade_start) — softer contrast + distance fade
+    _params->set_member("params", glm::vec4(0.02f, 0.01f, 1.75f, 8.0f));
 
     _bindings->append(_position_input);
     _bindings->append(_normal_input);

@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <algorithm>
+#include <cmath>
 #include "common.h"
 
 namespace lewitt
@@ -207,6 +208,61 @@ namespace lewitt
 
       // basically it we need to encode a sphere and an uncapped cylinder... so,
       // make primitives for those...
+      (void)N_long;
+      (void)N_lat;
+      (void)radius;
+      (void)height;
+      return {vertices, normals, {}, indices};
+    }
+
+    /// Canonical ring torus for instancing: major=1, minor=0.25, axis +Z.
+    /// One full turn in u and v.
+    /// Instance shader: local = major * radial + minor * tube_hat.
+    inline std::tuple<std::vector<vec3>, std::vector<vec3>, std::vector<uint32_t>>
+    torus(uint16_t N_major = 48, uint16_t N_minor = 24) {
+      std::vector<vec3> vertices;
+      std::vector<vec3> normals;
+      std::vector<uint32_t> indices;
+      vertices.reserve(static_cast<size_t>(N_major) * N_minor);
+      normals.reserve(static_cast<size_t>(N_major) * N_minor);
+
+      constexpr float kMajor = 1.0f;
+      constexpr float kMinor = 0.25f;
+      for (uint16_t i = 0; i < N_major; ++i) {
+        const float u = 2.0f * static_cast<float>(M_PI) * float(i) / float(N_major);
+        const float cu = std::cos(u);
+        const float su = std::sin(u);
+        for (uint16_t j = 0; j < N_minor; ++j) {
+          const float v =
+              2.0f * static_cast<float>(M_PI) * float(j) / float(N_minor);
+          const float cv = std::cos(v);
+          const float sv = std::sin(v);
+          const vec3 radial(cu, su, 0.0f);
+          const vec3 tube = cv * radial + sv * vec3(0.0f, 0.0f, 1.0f);
+          const vec3 p =
+              (kMajor + kMinor * cv) * radial + kMinor * sv * vec3(0.0f, 0.0f, 1.0f);
+          vertices.push_back(p);
+          normals.push_back(glm::normalize(tube));
+        }
+      }
+
+      for (uint16_t i = 0; i < N_major; ++i) {
+        const uint16_t i1 = (i + 1) % N_major;
+        for (uint16_t j = 0; j < N_minor; ++j) {
+          const uint16_t j1 = (j + 1) % N_minor;
+          const uint32_t a = uint32_t(i) * N_minor + j;
+          const uint32_t b = uint32_t(i1) * N_minor + j;
+          const uint32_t c = uint32_t(i1) * N_minor + j1;
+          const uint32_t d = uint32_t(i) * N_minor + j1;
+          indices.push_back(a);
+          indices.push_back(b);
+          indices.push_back(c);
+          indices.push_back(a);
+          indices.push_back(c);
+          indices.push_back(d);
+        }
+      }
+      return {vertices, normals, indices};
     }
   }
 }

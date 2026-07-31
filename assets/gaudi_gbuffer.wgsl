@@ -8,6 +8,7 @@ struct GBufferVertexOutput {
   @builtin(position) position: vec4f,
   @location(0) viewPosition: vec3f,
   @location(1) viewNormal: vec3f,
+  @location(2) albedo: vec3f,
 };
 
 struct uniforms {
@@ -31,12 +32,14 @@ fn vs_gbuffer(in: VertexInput) -> GBufferVertexOutput {
   out.position = u_object.projectionMatrix * u_object.viewMatrix * worldPosition;
   out.viewPosition = viewPosition;
   out.viewNormal = viewNormal;
+  out.albedo = in.color;
   return out;
 }
 
 struct GBufferFragmentOutput {
   @location(0) position: vec4f,
   @location(1) normal: vec4f,
+  @location(2) albedo: vec4f,
 };
 
 @fragment
@@ -44,5 +47,6 @@ fn fs_gbuffer(in: GBufferVertexOutput) -> GBufferFragmentOutput {
   var out: GBufferFragmentOutput;
   out.position = vec4f(in.viewPosition, 1.0);
   out.normal = vec4f(normalize(in.viewNormal), 1.0);
+  out.albedo = vec4f(in.albedo, 1.0);
   return out;
 }

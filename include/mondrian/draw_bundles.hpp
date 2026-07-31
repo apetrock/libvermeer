@@ -10,6 +10,8 @@
 #include "lewitt/bindings.hpp"
 #include "lewitt/buffers.hpp"
 #include "lewitt/debug_line_buffer.hpp"
+#include "lewitt/debug_sphere_buffer.hpp"
+#include "lewitt/debug_torus_buffer.hpp"
 #include "lewitt/mesh_buffer.hpp"
 
 namespace mondrian {
@@ -37,6 +39,18 @@ struct mesh_vertex_bundle {
 };
 
 struct debug_line_vertex_bundle {
+  std::array<lewitt::buffers::buffer::ptr, 7> vertex_buffers{};
+  lewitt::buffers::buffer::ptr index_buffer;
+  indexed_draw_command command{};
+};
+
+struct debug_sphere_vertex_bundle {
+  std::array<lewitt::buffers::buffer::ptr, 5> vertex_buffers{};
+  lewitt::buffers::buffer::ptr index_buffer;
+  indexed_draw_command command{};
+};
+
+struct debug_torus_vertex_bundle {
   std::array<lewitt::buffers::buffer::ptr, 7> vertex_buffers{};
   lewitt::buffers::buffer::ptr index_buffer;
   indexed_draw_command command{};
@@ -81,6 +95,54 @@ inline void bind_vertices(const debug_line_vertex_bundle &vertices,
 }
 
 inline void record_draw(const debug_line_vertex_bundle &vertices, wgpu::RenderPassEncoder &enc) {
+  if (!vertices.index_buffer || vertices.command.index_count == 0) {
+    return;
+  }
+  enc.drawIndexed(vertices.command.index_count, vertices.command.instance_count,
+                  vertices.command.first_index, vertices.command.base_vertex, 0);
+}
+
+inline void bind_vertices(const debug_sphere_vertex_bundle &vertices,
+                          wgpu::RenderPassEncoder &enc) {
+  for (uint32_t slot = 0; slot < vertices.vertex_buffers.size(); ++slot) {
+    if (!vertices.vertex_buffers[slot]) {
+      continue;
+    }
+    enc.setVertexBuffer(slot, vertices.vertex_buffers[slot]->get_buffer(), 0,
+                        vertices.vertex_buffers[slot]->get_buffer().getSize());
+  }
+  if (vertices.index_buffer) {
+    enc.setIndexBuffer(vertices.index_buffer->get_buffer(), wgpu::IndexFormat::Uint32, 0,
+                       vertices.index_buffer->size());
+  }
+}
+
+inline void record_draw(const debug_sphere_vertex_bundle &vertices,
+                        wgpu::RenderPassEncoder &enc) {
+  if (!vertices.index_buffer || vertices.command.index_count == 0) {
+    return;
+  }
+  enc.drawIndexed(vertices.command.index_count, vertices.command.instance_count,
+                  vertices.command.first_index, vertices.command.base_vertex, 0);
+}
+
+inline void bind_vertices(const debug_torus_vertex_bundle &vertices,
+                          wgpu::RenderPassEncoder &enc) {
+  for (uint32_t slot = 0; slot < vertices.vertex_buffers.size(); ++slot) {
+    if (!vertices.vertex_buffers[slot]) {
+      continue;
+    }
+    enc.setVertexBuffer(slot, vertices.vertex_buffers[slot]->get_buffer(), 0,
+                        vertices.vertex_buffers[slot]->get_buffer().getSize());
+  }
+  if (vertices.index_buffer) {
+    enc.setIndexBuffer(vertices.index_buffer->get_buffer(), wgpu::IndexFormat::Uint32, 0,
+                       vertices.index_buffer->size());
+  }
+}
+
+inline void record_draw(const debug_torus_vertex_bundle &vertices,
+                        wgpu::RenderPassEncoder &enc) {
   if (!vertices.index_buffer || vertices.command.index_count == 0) {
     return;
   }
@@ -182,6 +244,42 @@ inline debug_line_vertex_bundle make_debug_line_vertex_bundle(const lewitt::debu
   out.index_buffer = lines.index_buffer();
   out.command.index_count = lines.index_count();
   out.command.instance_count = lines.instance_count();
+  return out;
+}
+
+inline debug_sphere_vertex_bundle
+make_debug_sphere_vertex_bundle(const lewitt::debug_sphere_buffer &spheres) {
+  debug_sphere_vertex_bundle out{};
+  if (!spheres.valid()) {
+    return out;
+  }
+  out.vertex_buffers[0] = spheres.position_buffer();
+  out.vertex_buffers[1] = spheres.normal_buffer();
+  out.vertex_buffers[2] = spheres.center_buffer();
+  out.vertex_buffers[3] = spheres.radius_buffer();
+  out.vertex_buffers[4] = spheres.color_buffer();
+  out.index_buffer = spheres.index_buffer();
+  out.command.index_count = spheres.index_count();
+  out.command.instance_count = spheres.instance_count();
+  return out;
+}
+
+inline debug_torus_vertex_bundle
+make_debug_torus_vertex_bundle(const lewitt::debug_torus_buffer &tori) {
+  debug_torus_vertex_bundle out{};
+  if (!tori.valid()) {
+    return out;
+  }
+  out.vertex_buffers[0] = tori.position_buffer();
+  out.vertex_buffers[1] = tori.normal_buffer();
+  out.vertex_buffers[2] = tori.center_buffer();
+  out.vertex_buffers[3] = tori.axis_buffer();
+  out.vertex_buffers[4] = tori.major_buffer();
+  out.vertex_buffers[5] = tori.minor_buffer();
+  out.vertex_buffers[6] = tori.color_buffer();
+  out.index_buffer = tori.index_buffer();
+  out.command.index_count = tori.index_count();
+  out.command.instance_count = tori.instance_count();
   return out;
 }
 

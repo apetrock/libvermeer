@@ -64,9 +64,10 @@ namespace lewitt
       return _lighting_uniform_binding->valid();
     }
 
-    void update_uniforms(wgpu::Queue queue)
+    // Push camera/lighting to the GPU. Does not sample motion — call
+    // sample_camera_motion() once per present from the render path.
+    void sync_camera_uniforms(wgpu::Queue queue)
     {
-      _camera->update_inertia();
       _camera_uniform_binding->set_member("projectionMatrix", _camera->get_projection_matrix());
       _camera_uniform_binding->set_member("viewMatrix", _camera->get_view_matrix());
       _camera_uniform_binding->set_member("cameraWorldPosition", _camera->get_position());
@@ -75,10 +76,19 @@ namespace lewitt
       _lighting_uniform_binding->update(queue);
     }
 
+    // Once per present: inertia step, then ‖pose − prev‖ for live capture.
+    void update_uniforms(wgpu::Queue queue)
+    {
+      _camera->update_inertia();
+      _camera->sample_motion();
+      sync_camera_uniforms(queue);
+    }
+
     void camera_scroll(double xoffset, double yoffset, wgpu::Queue queue)
     {
       _camera->scroll(xoffset, yoffset);
-      update_uniforms(queue);
+      // Sync view immediately for interactivity; motion is sampled on the next present.
+      sync_camera_uniforms(queue);
     }
     void camera_move_start() { _camera->move_start(); }
     void camera_move_end() { _camera->move_end(); }
@@ -87,9 +97,24 @@ namespace lewitt
       if (_camera->_drag_state.active)
       {
         _camera->move(xpos, ypos);
-        update_uniforms(queue);
+        sync_camera_uniforms(queue);
+      }
+      else if (_camera->_pan_state.active)
+      {
+        _camera->pan_move(xpos, ypos);
+        sync_camera_uniforms(queue);
       }
     }
+
+    void camera_pan_start(double xpos, double ypos) { _camera->pan_start(xpos, ypos); }
+    void camera_pan_end() { _camera->pan_end(); }
+
+    bool camera_animating() const
+    {
+      return _camera && _camera->is_moving();
+    }
+
+    camera::ptr get_camera() const { return _camera; }
 
     void bind_camera(const lewitt::doables::doable::ptr &renderable) {
       if (renderable && _camera_uniform_binding) {
